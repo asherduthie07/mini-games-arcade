@@ -69,7 +69,7 @@ interface GameStoreState {
   leaveRoom: () => Promise<void>;
   toggleReady: () => Promise<void>;
   startGame: () => Promise<void>;
-  updatePlayerPosition: (x: number, y: number, vx: number, vy: number, finished?: boolean, score?: number, z?: number) => Promise<void>;
+  updatePlayerPosition: (x: number, y: number, vx: number, vy: number, finished?: boolean, score?: number, z?: number, stats?: { deaths?: number; punches?: number; falls?: number; sabotages?: number }) => Promise<void>;
   sendChatMessage: (text: string) => Promise<void>;
   sendGameEvent: (type: string, payload: any) => Promise<void>;
   kickPlayer: (playerId: string) => Promise<void>;
@@ -434,7 +434,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }
     },
 
-    updatePlayerPosition: async (x, y, vx, vy, finished = false, score?: number, z = 0) => {
+    updatePlayerPosition: async (x, y, vx, vy, finished = false, score?: number, z = 0, stats?: { deaths?: number; punches?: number; falls?: number; sabotages?: number }) => {
       const { roomId, currentUserId } = get();
       if (!roomId || !currentUserId) return;
 
@@ -443,7 +443,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         const payload: any = {
           x_position: x,
           y_position: y,
-          velocity: { x: vx, y: vy, z: z },
+          velocity: { x: vx, y: vy, z: z, ...(stats || {}) },
           finished: finished
         };
         

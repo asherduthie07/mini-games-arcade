@@ -1,148 +1,204 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore, Player } from '../useGameStore';
-import { playCrashSound, playBoostSound, playVictorySound } from '../utils/audio';
-import { Trophy, ArrowLeft, Zap, Orbit, Compass, Volume2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { getSupabase } from '../supabaseClient';
+import { playCrashSound, playBoostSound, playVictorySound, playBeep } from '../utils/audio';
+import {
+  Trophy,
+  ArrowLeft,
+  Zap,
+  Orbit,
+  Shield,
+  Sparkles,
+  AlertTriangle,
+  Swords,
+  Footprints,
+  Skull,
+  Award,
+  CircleAlert,
+  HelpCircle,
+  Clock,
+  Volume2
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface GameViewProps {
   code: string;
 }
 
-// Predefined deterministic obstacles (y-coordinate, base x-position, horizontal amplitude, horizontal speed, width, height)
-interface Obstacle {
-  id: number;
+// Map Dimensions
+const MAP_LENGTH = 4000;
+const CANVAS_WIDTH = 800;
+const CANVAS_HEIGHT = 560;
+const GROUND_LEVEL = 500;
+
+// Type Definitions for Map Elements
+interface StaticPlatform {
+  x: number;
   y: number;
-  xBase: number;
-  amp: number;
-  speed: number;
   w: number;
   h: number;
-  style: string; // 'neon-red' | 'cyber-barrier' | 'debris' | 'asteroid' | 'floor-gap' | 'high-wall' | 'low-hurdle' | 'energy-gate'
+  style: 'stone' | 'wood' | 'neon' | 'hazard' | 'ice';
+  isFalling?: boolean;
+  fallTimer?: number; // frames shaking before drop
+  hasFallen?: boolean;
+  isDisappearing?: boolean;
+  isTrampoline?: boolean;
 }
 
-// 1. Obstacle Dash Obstacles
-const OBSTACLES_OBSTACLE_DASH: Obstacle[] = [
-  { id: 1, y: 2400, xBase: 350, amp: 100, speed: 0.002, w: 90, h: 24, style: 'cyber-barrier' },
-  { id: 2, y: 2200, xBase: 450, amp: 120, speed: 0.003, w: 80, h: 20, style: 'neon-red' },
-  { id: 3, y: 2000, xBase: 250, amp: 80, speed: 0.0025, w: 100, h: 24, style: 'debris' },
-  { id: 4, y: 1800, xBase: 400, amp: 160, speed: 0.004, w: 120, h: 24, style: 'neon-red' },
-  { id: 5, y: 1600, xBase: 300, amp: 140, speed: 0.005, w: 80, h: 28, style: 'cyber-barrier' },
-  { id: 6, y: 1400, xBase: 500, amp: 180, speed: 0.0035, w: 110, h: 20, style: 'debris' },
-  { id: 7, y: 1100, xBase: 400, amp: 200, speed: 0.006, w: 140, h: 24, style: 'neon-red' },
-  { id: 8, y: 900, xBase: 300, amp: 180, speed: 0.0055, w: 100, h: 24, style: 'cyber-barrier' },
-  { id: 9, y: 700, xBase: 450, amp: 220, speed: 0.007, w: 130, h: 24, style: 'neon-red' },
-  { id: 10, y: 450, xBase: 350, amp: 120, speed: 0.008, w: 150, h: 30, style: 'cyber-barrier' },
-];
-
-// 2. Space Dodge Obstacles (Asteroids)
-const OBSTACLES_SPACE_DODGE: Obstacle[] = [
-  { id: 201, y: 2500, xBase: 200, amp: 110, speed: 0.002, w: 45, h: 45, style: 'asteroid' },
-  { id: 202, y: 2300, xBase: 500, amp: 130, speed: 0.003, w: 50, h: 50, style: 'asteroid' },
-  { id: 203, y: 2100, xBase: 350, amp: 120, speed: 0.0015, w: 60, h: 60, style: 'asteroid' },
-  { id: 204, y: 1900, xBase: 600, amp: 90, speed: 0.004, w: 40, h: 40, style: 'asteroid' },
-  { id: 205, y: 1700, xBase: 150, amp: 150, speed: 0.0025, w: 55, h: 55, style: 'asteroid' },
-  { id: 206, y: 1500, xBase: 400, amp: 100, speed: 0.0035, w: 52, h: 52, style: 'asteroid' },
-  { id: 207, y: 1300, xBase: 250, amp: 140, speed: 0.005, w: 42, h: 42, style: 'asteroid' },
-  { id: 208, y: 1100, xBase: 550, amp: 90, speed: 0.002, w: 65, h: 65, style: 'asteroid' },
-  { id: 209, y: 900, xBase: 300, amp: 170, speed: 0.004, w: 45, h: 45, style: 'asteroid' },
-  { id: 210, y: 700, xBase: 450, amp: 120, speed: 0.003, w: 48, h: 48, style: 'asteroid' },
-  { id: 211, y: 500, xBase: 350, amp: 160, speed: 0.006, w: 55, h: 55, style: 'asteroid' },
-];
-
-// 3. Neon Coin Rush Obstacles
-const OBSTACLES_NEON_COIN_RUSH: Obstacle[] = [
-  { id: 301, y: 2400, xBase: 300, amp: 70, speed: 0.001, w: 80, h: 20, style: 'energy-gate' },
-  { id: 302, y: 2100, xBase: 500, amp: 90, speed: 0.002, w: 90, h: 20, style: 'energy-gate' },
-  { id: 303, y: 1800, xBase: 250, amp: 85, speed: 0.0015, w: 80, h: 20, style: 'energy-gate' },
-  { id: 304, y: 1500, xBase: 450, amp: 110, speed: 0.002, w: 100, h: 20, style: 'energy-gate' },
-  { id: 305, y: 1200, xBase: 350, amp: 95, speed: 0.0025, w: 85, h: 20, style: 'energy-gate' },
-  { id: 306, y: 900, xBase: 550, amp: 120, speed: 0.0018, w: 90, h: 20, style: 'energy-gate' },
-  { id: 307, y: 600, xBase: 300, amp: 130, speed: 0.003, w: 120, h: 20, style: 'energy-gate' },
-];
-
-// 4. Parkour Extreme Obstacles (Gaps and Walls)
-const OBSTACLES_PARKOUR: Obstacle[] = [
-  { id: 401, y: 2500, xBase: 400, amp: 0, speed: 0, w: 200, h: 70, style: 'floor-gap' },
-  { id: 402, y: 2300, xBase: 255, amp: 0, speed: 0, w: 110, h: 24, style: 'low-hurdle' },
-  { id: 403, y: 2100, xBase: 545, amp: 0, speed: 0, w: 110, h: 24, style: 'high-wall' },
-  { id: 404, y: 1900, xBase: 305, amp: 0, speed: 0, w: 240, h: 80, style: 'floor-gap' },
-  { id: 405, y: 1700, xBase: 450, amp: 115, speed: 0.002, w: 100, h: 20, style: 'low-hurdle' },
-  { id: 406, y: 1500, xBase: 355, amp: 0, speed: 0, w: 180, h: 24, style: 'high-wall' },
-  { id: 407, y: 1300, xBase: 400, amp: 0, speed: 0, w: 260, h: 90, style: 'floor-gap' },
-  { id: 408, y: 1105, xBase: 250, amp: 0, speed: 0, w: 120, h: 20, style: 'low-hurdle' },
-  { id: 409, y: 905, xBase: 505, amp: 95, speed: 0.003, w: 100, h: 20, style: 'low-hurdle' },
-  { id: 410, y: 650, xBase: 400, amp: 0, speed: 0, w: 300, h: 110, style: 'floor-gap' },
-];
-
-const getActiveObstacles = (gameMode: string): Obstacle[] => {
-  if (gameMode === 'Space Dodge') return OBSTACLES_SPACE_DODGE;
-  if (gameMode === 'Neon Coin Rush') return OBSTACLES_NEON_COIN_RUSH;
-  if (gameMode === 'Parkour Extreme') return OBSTACLES_PARKOUR;
-  return OBSTACLES_OBSTACLE_DASH;
-};
-
-// Predefined deterministic powerups [ {id, x, y, collected} ]
-interface PowerBoost {
+interface MovingPlatform {
   id: number;
   x: number;
   y: number;
-  type: 'speed' | 'shield' | 'coin' | 'parkour-boost';
+  w: number;
+  h: number;
+  xBase: number;
+  yBase: number;
+  rangeX: number;
+  rangeY: number;
+  speed: number;
 }
 
-const CONSTS_BOOSTS_DASH: PowerBoost[] = [
-  { id: 101, x: 250, y: 2500, type: 'speed' },
-  { id: 102, x: 550, y: 2100, type: 'speed' },
-  { id: 103, x: 300, y: 1700, type: 'speed' },
-  { id: 104, x: 450, y: 1250, type: 'speed' },
-  { id: 105, x: 350, y: 800, type: 'speed' },
-  { id: 106, x: 500, y: 500, type: 'speed' },
-];
+interface Hazard {
+  id: number;
+  type: 'spike' | 'crusher' | 'blade' | 'laser' | 'barrel_spawner';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  speed?: number;
+  amp?: number;
+  stateTimer?: number;
+}
 
-const CONSTS_BOOSTS_SPACE: PowerBoost[] = [
-  { id: 501, x: 200, y: 2400, type: 'shield' },
-  { id: 502, x: 600, y: 2100, type: 'shield' },
-  { id: 503, x: 400, y: 1800, type: 'shield' },
-  { id: 504, x: 300, y: 1300, type: 'shield' },
-  { id: 505, x: 500, y: 900, type: 'shield' },
-  { id: 506, x: 250, y: 600, type: 'shield' },
-];
+interface PowerUp {
+  id: number;
+  x: number;
+  y: number;
+  type: 'speed' | 'shield' | 'triple_jump' | 'immunity' | 'super_punch' | 'ghost';
+  collected: boolean;
+}
 
-const CONSTS_BOOSTS_COINS: PowerBoost[] = [
-  { id: 601, x: 250, y: 2605, type: 'coin' },
-  { id: 602, x: 250, y: 2555, type: 'coin' },
-  { id: 603, x: 250, y: 2505, type: 'coin' },
-  { id: 604, x: 550, y: 2305, type: 'coin' },
-  { id: 605, x: 550, y: 2255, type: 'coin' },
-  { id: 606, x: 550, y: 2205, type: 'coin' },
-  { id: 607, x: 400, y: 2005, type: 'coin' },
-  { id: 608, x: 400, y: 1955, type: 'coin' },
-  { id: 609, x: 400, y: 1905, type: 'coin' },
-  { id: 610, x: 300, y: 1605, type: 'coin' },
-  { id: 611, x: 320, y: 1555, type: 'coin' },
-  { id: 612, x: 340, y: 1505, type: 'coin' },
-  { id: 613, x: 500, y: 1305, type: 'coin' },
-  { id: 614, x: 480, y: 1255, type: 'coin' },
-  { id: 615, x: 460, y: 1205, type: 'coin' },
-  { id: 616, x: 350, y: 905, type: 'coin' },
-  { id: 617, x: 350, y: 855, type: 'coin' },
-  { id: 618, x: 350, y: 805, type: 'coin' },
-  { id: 619, x: 450, y: 605, type: 'coin' },
-  { id: 620, x: 450, y: 555, type: 'coin' },
-  { id: 621, x: 450, y: 505, type: 'coin' },
-];
+interface BananaPeel {
+  id: number;
+  x: number;
+  y: number;
+  active: boolean;
+}
 
-const CONSTS_BOOSTS_PARKOUR: PowerBoost[] = [
-  { id: 701, x: 400, y: 2600, type: 'parkour-boost' },
-  { id: 702, x: 300, y: 2000, type: 'parkour-boost' },
-  { id: 703, x: 500, y: 1450, type: 'parkour-boost' },
-  { id: 704, x: 400, y: 800, type: 'parkour-boost' },
-];
+interface RollingBarrel {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+}
 
-const getActiveBoosts = (gameMode: string): PowerBoost[] => {
-  if (gameMode === 'Space Dodge') return CONSTS_BOOSTS_SPACE;
-  if (gameMode === 'Neon Coin Rush') return CONSTS_BOOSTS_COINS;
-  if (gameMode === 'Parkour Extreme') return CONSTS_BOOSTS_PARKOUR;
-  return CONSTS_BOOSTS_DASH;
+// Deterministic Map layouts based on selected mode
+interface MapLayout {
+  platforms: StaticPlatform[];
+  movingPlatforms: MovingPlatform[];
+  hazards: Hazard[];
+  powerups: PowerUp[];
+  checkpoints: { x: number; label: string }[];
+}
+
+const generateMapLayout = (mode: string): MapLayout => {
+  const isSpace = mode === 'Space Dodge';
+  const isCoin = mode === 'Neon Coin Rush';
+  const isParkour = mode === 'Parkour Extreme';
+
+  // Define static platforms
+  const platforms: StaticPlatform[] = [
+    // Starting floor
+    { x: 0, y: GROUND_LEVEL, w: 750, h: 100, style: isSpace ? 'neon' : (isCoin ? 'neon' : 'stone') },
+    
+    // Low obstacle block / hurdle
+    { x: 550, y: GROUND_LEVEL - 35, w: 40, h: 35, style: 'hazard' },
+    
+    // First high structure
+    { x: 1050, y: GROUND_LEVEL - 50, w: 500, h: 150, style: isSpace ? 'ice' : 'wood' },
+    
+    // Underwear safety net platform for chasm 1 below
+    { x: 820, y: GROUND_LEVEL + 60, w: 100, h: 15, style: isCoin ? 'neon' : 'wood', isFalling: true },
+
+    // Moving step indicators & tunnel passage ceiling block
+    { x: 1900, y: GROUND_LEVEL - 120, w: 220, h: 20, style: 'stone' },
+    { x: 2120, y: GROUND_LEVEL, w: 350, h: 100, style: 'stone' }, // Ground floor for sliding tunnel
+    { x: 2150, y: GROUND_LEVEL - 145, w: 260, h: 120, style: 'stone' }, // Ceiling creating a nice sliding crawlway!
+
+    // Stepping stones climbing stairs
+    { x: 1650, y: GROUND_LEVEL - 80, w: 80, h: 200, style: 'stone' },
+    { x: 1780, y: GROUND_LEVEL - 150, w: 60, h: 20, style: 'wood' },
+    
+    // Holographic disappearing platforms (Neon style) or fragile bridges
+    { x: 2550, y: GROUND_LEVEL - 80, w: 120, h: 15, style: 'neon', isDisappearing: true },
+    { x: 2750, y: GROUND_LEVEL - 80, w: 120, h: 15, style: 'neon', isDisappearing: true },
+
+    // Falling bridges sequence
+    { x: 2950, y: GROUND_LEVEL - 40, w: 80, h: 15, style: 'wood', isFalling: true },
+    { x: 3080, y: GROUND_LEVEL - 80, w: 80, h: 15, style: 'wood', isFalling: true },
+    { x: 3210, y: GROUND_LEVEL - 40, w: 80, h: 15, style: 'wood', isFalling: true },
+
+    // Final sprint run
+    { x: 3350, y: GROUND_LEVEL, w: 800, h: 100, style: isSpace ? 'neon' : 'stone' },
+    
+    // Launch pad / Trampoline (bounce player up)
+    { x: 3450, y: GROUND_LEVEL - 10, w: 50, h: 10, style: 'hazard', isTrampoline: true }
+  ];
+
+  // Moving platforms
+  const movingPlatforms: MovingPlatform[] = [
+    { id: 1, x: 800, y: GROUND_LEVEL - 40, w: 120, h: 15, xBase: 800, yBase: GROUND_LEVEL - 40, rangeX: 110, rangeY: 0, speed: 0.02 },
+    { id: 2, x: 1580, y: GROUND_LEVEL - 90, w: 110, h: 15, xBase: 1580, yBase: GROUND_LEVEL - 110, rangeX: 0, rangeY: 80, speed: 0.025 }
+  ];
+
+  // Map hazards
+  const hazards: Hazard[] = [
+    // Spike clusters in major pits
+    { id: 10, type: 'spike', x: 800, y: GROUND_LEVEL + 45, w: 250, h: 15 },
+    { id: 11, type: 'spike', x: 1600, y: GROUND_LEVEL + 45, w: 300, h: 15 },
+    
+    // Spikes on flat structures
+    { id: 12, type: 'spike', x: 1250, y: GROUND_LEVEL - 65, w: 80, h: 15 },
+
+    // Swinging pendulum blade
+    { id: 13, type: 'blade', x: 1400, y: GROUND_LEVEL - 190, w: 40, h: 40, speed: 0.03, amp: 85 },
+    { id: 14, type: 'blade', x: 3600, y: GROUND_LEVEL - 200, w: 50, h: 50, speed: 0.035, amp: 100 },
+
+    // Crushing heavy pistons
+    { id: 15, type: 'crusher', x: 2400, y: GROUND_LEVEL - 200, w: 60, h: 140, speed: 0.04 },
+    { id: 16, type: 'crusher', x: 3750, y: GROUND_LEVEL - 220, w: 70, h: 160, speed: 0.03 },
+
+    // Laser beam grids
+    { id: 17, type: 'laser', x: 1980, y: GROUND_LEVEL - 240, w: 6, h: 120 },
+    { id: 18, type: 'laser', x: 3400, y: GROUND_LEVEL - 120, w: 6, h: 120 },
+
+    // Rolling boulder/barrel spawner
+    { id: 19, type: 'barrel_spawner', x: 3100, y: GROUND_LEVEL - 280, w: 30, h: 30 }
+  ];
+
+  // Specific powerup items dispersed across the zone
+  const powerups: PowerUp[] = [
+    { id: 50, x: 420, y: GROUND_LEVEL - 30, type: 'speed', collected: false },
+    { id: 51, x: 1120, y: GROUND_LEVEL - 80, type: 'shield', collected: false },
+    { id: 52, x: 1480, y: GROUND_LEVEL - 160, type: 'triple_jump', collected: false },
+    { id: 53, x: 2000, y: GROUND_LEVEL - 160, type: 'immunity', collected: false },
+    { id: 54, x: 2320, y: GROUND_LEVEL - 40, type: 'ghost', collected: false },
+    { id: 55, x: 2800, y: GROUND_LEVEL - 130, type: 'super_punch', collected: false },
+    { id: 56, x: 3470, y: GROUND_LEVEL - 180, type: 'speed', collected: false }
+  ];
+
+  // Five distinct checkpoints for competitive progression resetting
+  const checkpoints = [
+    { x: 150, label: 'Start Gate' },
+    { x: 1100, label: 'Valley Outpost' },
+    { x: 1950, label: 'Cavern Steps' },
+    { x: 2750, label: 'Fragile Chasm' },
+    { x: 3500, label: 'Final Ascent' }
+  ];
+
+  return { platforms, movingPlatforms, hazards, powerups, checkpoints };
 };
 
 export default function GameView({ code }: GameViewProps) {
@@ -159,37 +215,99 @@ export default function GameView({ code }: GameViewProps) {
     sendGameEvent
   } = useGameStore();
 
-  // Local physical states for the local player's car
+  const gameMode = room?.current_game || 'Obstacle Dash';
+
+  // Deterministic local game map
+  const mapLayout = useRef<MapLayout>(generateMapLayout(gameMode));
+
+  // Current local dynamic hazards state (falling platforms timer, laser cycle etc)
+  const [fragilePlatforms, setFragilePlatforms] = useState<{ [index: number]: { yOffset: number; state: 'stable' | 'shaking' | 'fallen'; shakeTimer: number } }>({});
+  const fallStates = useRef<{ [index: number]: { yOffset: number; state: 'stable' | 'shaking' | 'fallen'; shakeTimer: number } }>({});
+
+  const [collectedBoostIds, setCollectedBoostIds] = useState<Set<number>>(new Set());
+
+  // Local physical parameters of local player character
   const myPlayerRef = useRef<{
     x: number;
     y: number;
     vx: number;
     vy: number;
     heading: number;
+    facingRight: boolean;
+
+    // Movement states
+    isGrounded: boolean;
+    doubleJumpsUsed: number;
+
+    // Status / Timer loops
     boostTimer: number;
-    crashTimer: number;
-    finished: boolean;
+    crashTimer: number; // Stun recovery
+    slideTimer: number;
+    slideCooldown: number;
+    dashTimer: number;
+    dashCooldown: number;
+    punchCooldown: number;
+    grabCooldown: number;
+    grabTimer: number; // Stuck grabbed
+    immunityTimer: number; // Shield active
+    tripleJumpTimer: number;
+    superPunchTimer: number;
+    ghostTimer: number;
+
+    // Banana peel slip state
+    slipTimer: number;
+
+    // Checkpoint
+    latestCheckpointX: number;
+    latestCheckpointLabel: string;
+
+    // Synchronized competitive statistics
     score: number;
-    z: number;
-    jumpTimer: number;
+    finished: boolean;
+    finishTime: number;
+    finishPlacement: number;
+    statsDeaths: number;
+    statsPunches: number;
+    statsFalls: number;
+    statsSabotages: number;
   }>({
-    x: 400,
-    y: 2850,
+    x: 150,
+    y: GROUND_LEVEL - 40,
     vx: 0,
     vy: 0,
     heading: 0,
+    facingRight: true,
+    isGrounded: true,
+    doubleJumpsUsed: 0,
     boostTimer: 0,
     crashTimer: 0,
-    finished: false,
+    slideTimer: 0,
+    slideCooldown: 0,
+    dashTimer: 0,
+    dashCooldown: 0,
+    punchCooldown: 0,
+    grabCooldown: 0,
+    grabTimer: 0,
+    immunityTimer: 0,
+    tripleJumpTimer: 0,
+    superPunchTimer: 0,
+    ghostTimer: 0,
+    slipTimer: 0,
+    latestCheckpointX: 150,
+    latestCheckpointLabel: 'Start Gate',
     score: 0,
-    z: 0,
-    jumpTimer: 0
+    finished: false,
+    finishTime: 0,
+    finishPlacement: 0,
+    statsDeaths: 0,
+    statsPunches: 0,
+    statsFalls: 0,
+    statsSabotages: 0
   });
 
-  // Track player inputs
   const keysPressed = useRef<{ [key: string]: boolean }>({});
 
-  // Interpolated visual vectors for other players to eliminate network jitter
+  // Interpolated targets for other players
   const interpolationsRef = useRef<{
     [id: string]: {
       x: number;
@@ -199,62 +317,109 @@ export default function GameView({ code }: GameViewProps) {
       finished: boolean;
       score: number;
       z: number;
+      deaths: number;
+      punches: number;
+      falls: number;
+      sabotages: number;
+      isSliding: boolean;
+      isDashing: boolean;
+      isPunching: boolean;
+      isStunned: boolean;
+      shieldActive: boolean;
     };
   }>({});
 
-  // Local list of active boosts to hide once collected
-  const [collectedBoostIds, setCollectedBoostIds] = useState<Set<number>>(new Set());
+  // Dynamic objects
+  const [barrels, setBarrels] = useState<RollingBarrel[]>([]);
+  const barrelsRef = useRef<RollingBarrel[]>([]);
+  const barrelSpawnCooldown = useRef<number>(0);
+
+  // Active Banana peels on floor
+  const bananaPeels = useRef<BananaPeel[]>([
+    { id: 901, x: 700, y: GROUND_LEVEL - 5, active: true },
+    { id: 902, x: 1300, y: GROUND_LEVEL - 50 - 5, active: true },
+    { id: 903, x: 2300, y: GROUND_LEVEL - 5, active: true },
+    { id: 904, x: 3550, y: GROUND_LEVEL - 5, active: true }
+  ]);
+
+  // Current active Chaos Event mid-race
+  const [activeChaosEvent, setActiveChaosEvent] = useState<string | null>(null);
+  const [chaosAnnouncement, setChaosAnnouncement] = useState<string | null>(null);
+  const chaosTimer = useRef<number>(400); // Trigger countdown
+
+  // Multiplier speed tracker
   const [speedVal, setSpeedVal] = useState(0);
-  const [secondsLeft, setSecondsLeft] = useState(30);
 
-  // Initialize and synchronize game mode values
+  // Synced local states for rendering in sidebars
+  const [localStats, setLocalStats] = useState({
+    deaths: 0,
+    punches: 0,
+    falls: 0,
+    sabotages: 0,
+    powerup: 'None'
+  });
+
+  // Complete Confetti list
+  const [confetti, setConfetti] = useState<{ x: number; y: number; vx: number; vy: number; color: string }[]>([]);
+
+  // 1. Setup real-time postgres INSERT listener for combat punch, tackle, and stun events
   useEffect(() => {
-    const gameMode = room?.current_game || 'Obstacle Dash';
-    if (gameMode === 'Space Dodge') {
-      myPlayerRef.current.score = 1000; // Start with full shields
-    } else {
-      myPlayerRef.current.score = 0; // Coins or normal start at 0
-    }
-  }, [room?.current_game]);
+    if (!room?.id) return;
+    const supabase = getSupabase();
+    if (!supabase) return;
 
-  // Space Dodge countdown timer logic
-  useEffect(() => {
-    const gameMode = room?.current_game || 'Obstacle Dash';
-    if (gameMode !== 'Space Dodge') return;
+    const channel = supabase
+      .channel(`combat_${room.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'game_events',
+        filter: `room_id=eq.${room.id}`
+      }, (payload) => {
+        const evt = payload.new as any;
+        if (evt.type === 'combat_hit') {
+          const { attackerId, targetId, type, vx, vy, attackerName } = evt.payload;
+          if (targetId === currentUserId) {
+            const my = myPlayerRef.current;
+            // Shield immunity absorbs hits
+            if (my.immunityTimer > 0) {
+              my.immunityTimer = 0; // consume shield
+              playBeep(260, 0.15, 'sine');
+              return;
+            }
 
-    setSecondsLeft(30);
-
-    const timer = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          
-          if (!myPlayerRef.current.finished) {
-            myPlayerRef.current.finished = true;
-            playVictorySound();
-            updatePlayerPosition(myPlayerRef.current.x, myPlayerRef.current.y, 0, 0, true, myPlayerRef.current.score);
-            
-            sendGameEvent('race_complete', {
-              username: username,
-              finishTime: Date.now(),
-              score: myPlayerRef.current.score
-            });
-
-            setTimeout(() => {
-              window.history.pushState(null, '', `/results/${code}`);
-              window.dispatchEvent(new Event('pushstate'));
-            }, 3000);
+            if (type === 'punch') {
+              my.vx = vx;
+              my.vy = vy;
+              my.crashTimer = 50; // stun for 50 frames
+              my.statsDeaths += 0; // doesn't count as outright death
+              playCrashSound();
+            } else if (type === 'grab') {
+              my.vx = 0;
+              my.vy = 0;
+              my.grabTimer = 60; // immobilize for 1 sec (60 frames)
+              playBeep(220, 0.25, 'triangle');
+            } else if (type === 'tackle') {
+              my.vx = vx;
+              my.vy = vy;
+              my.crashTimer = 65; // heavy stun
+              playCrashSound();
+            } else if (type === 'stomp') {
+              my.vy = 2;
+              my.crashTimer = 55; // squeak stun
+              playBeep(330, 0.2, 'sawtooth');
+            }
           }
-          return 0;
         }
-        return prev - 1;
-      });
-    }, 1000);
+      })
+      .subscribe();
 
-    return () => clearInterval(timer);
-  }, [room?.current_game, updatePlayerPosition, sendGameEvent, username, code]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [room?.id, currentUserId]);
 
-  // Keyboard Event Handlers
+  // 2. Control Key Event Handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
@@ -276,19 +441,32 @@ export default function GameView({ code }: GameViewProps) {
     };
   }, []);
 
-  // Sync Positions over Supabase Realtime at 10Hz (once every 100ms)
+  // 3. Realtime position sync interval
   useEffect(() => {
     const syncInterval = setInterval(() => {
       const my = myPlayerRef.current;
-      if (my.finished) return; // Wait to submit final finish results
+      if (my.finished) return; // Wait to submit final results
 
-      updatePlayerPosition(my.x, my.y, my.vx, my.vy, my.finished, my.score, my.z);
+      // Aggregate extra properties on the velocity payload JSON
+      const statsObject = {
+        deaths: my.statsDeaths,
+        punches: my.statsPunches,
+        falls: my.statsFalls,
+        sabotages: my.statsSabotages,
+        isSliding: my.slideTimer > 0,
+        isDashing: my.dashTimer > 0,
+        isPunching: my.punchCooldown > 20,
+        isStunned: my.crashTimer > 0 || my.grabTimer > 0 || my.slipTimer > 0,
+        shieldActive: my.immunityTimer > 0
+      };
+
+      updatePlayerPosition(my.x, my.y, my.vx, my.vy, my.finished, my.score, 0, statsObject);
     }, 100);
 
     return () => clearInterval(syncInterval);
   }, [updatePlayerPosition]);
 
-  // Main 60 FPS Game Loop
+  // 4. Main Animation Frame update and physics hook
   useEffect(() => {
     let animationId: number;
 
@@ -298,209 +476,562 @@ export default function GameView({ code }: GameViewProps) {
       animationId = requestAnimationFrame(gameLoop);
     };
 
-    // Physics Engine Handler
     const updatePhysics = () => {
       const my = myPlayerRef.current;
       const keys = keysPressed.current;
-      const gameMode = room?.current_game || 'Obstacle Dash';
 
-      // Handle timers
-      if (my.boostTimer > 0) my.boostTimer--;
-      if (my.crashTimer > 0) my.crashTimer--;
-
-      // Handle Jump states (Support space key for jump in all modes, essential in Parkour Extreme)
-      const isSpacePressed = keys[' '] || keys['Spacebar'] || keys['space'];
-      if (isSpacePressed && my.z === 0 && my.crashTimer <= 0) {
-        my.jumpTimer = 32; // Jump duration in frames
-        // Quick high-pitched jump sound
-        try {
-          const sCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-          const osc = sCtx.createOscillator();
-          const gainNode = sCtx.createGain();
-          osc.connect(gainNode);
-          gainNode.connect(sCtx.destination);
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(400, sCtx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(750, sCtx.currentTime + 0.15);
-          gainNode.gain.setValueAtTime(0.08, sCtx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, sCtx.currentTime + 0.15);
-          osc.start();
-          osc.stop(sCtx.currentTime + 0.15);
-        } catch (e) {}
-      }
-
-      if (my.jumpTimer > 0) {
-        my.jumpTimer--;
-        my.z = Math.sin((my.jumpTimer / 32) * Math.PI) * 45; // Altitude parabolic curve peaks at 45 px
-      } else {
-        my.z = 0;
-      }
-
-      // If finished, decay speed
+      // Handle win/finish decay
       if (my.finished) {
-        my.vy *= 0.95;
-        my.vx *= 0.95;
+        my.vx *= 0.92;
+        my.vy *= 0.92;
         my.x += my.vx;
         my.y += my.vy;
+        
+        // Spawn pretty confetti near the screen centers
+        if (Math.random() < 0.3) {
+          const colors = ['#f59e0b', '#3b82f6', '#10b981', '#ec4899', '#8b5cf6'];
+          setConfetti(prev => [
+            ...prev,
+            {
+              x: my.x - (my.x - 300) + Math.random() * 400 - 200,
+              y: Math.random() * 200 + 100,
+              vx: Math.random() * 4 - 2,
+              vy: Math.random() * 3 + 1,
+              color: colors[Math.floor(Math.random() * colors.length)]
+            }
+          ].slice(-60));
+        }
         return;
       }
 
-      // 1. Steering & Lateral Displacement controls
-      let steerInput = 0;
-      if (keys['ArrowLeft'] || keys['a'] || keys['A']) steerInput = -1;
-      if (keys['ArrowRight'] || keys['d'] || keys['D']) steerInput = 1;
+      // Decrement timers
+      if (my.boostTimer > 0) my.boostTimer--;
+      if (my.crashTimer > 0) my.crashTimer--;
+      if (my.slideTimer > 0) my.slideTimer--;
+      if (my.slideCooldown > 0) my.slideCooldown--;
+      if (my.dashTimer > 0) my.dashTimer--;
+      if (my.dashCooldown > 0) my.dashCooldown--;
+      if (my.punchCooldown > 0) my.punchCooldown--;
+      if (my.grabCooldown > 0) my.grabCooldown--;
+      if (my.grabTimer > 0) my.grabTimer--;
+      if (my.immunityTimer > 0) my.immunityTimer--;
+      if (my.tripleJumpTimer > 0) my.tripleJumpTimer--;
+      if (my.superPunchTimer > 0) my.superPunchTimer--;
+      if (my.ghostTimer > 0) my.ghostTimer--;
+      if (my.slipTimer > 0) my.slipTimer--;
 
-      // Rotate tires slightly or update steer vector
-      const currentMaxSteer = my.crashTimer > 0 ? 1 : (my.boostTimer > 0 ? 9 : 6.5);
-      my.vx = steerInput * currentMaxSteer;
+      // Update falling and shaking platforms
+      const updatedFalls = { ...fallStates.current };
+      mapLayout.current.platforms.forEach((plat, idx) => {
+        if (plat.isFalling) {
+          const state = updatedFalls[idx] || { yOffset: 0, state: 'stable', shakeTimer: 45 };
+          if (state.state === 'shaking') {
+            state.shakeTimer--;
+            if (state.shakeTimer <= 0) {
+              state.state = 'fallen';
+            }
+          }
+          if (state.state === 'fallen') {
+            state.yOffset += 4; // fall down
+          }
+          updatedFalls[idx] = state;
+        }
+      });
+      fallStates.current = updatedFalls;
+      setFragilePlatforms(updatedFalls);
 
-      // 2. Acceleration / progression controls
-      let accelInput = 0;
-      if (keys['ArrowUp'] || keys['w'] || keys['W']) accelInput = 1;
-      if (keys['ArrowDown'] || keys['s'] || keys['S']) accelInput = -0.5;
+      // Main Chaos Events Scheduler (Add hilarious elements every 15-20 seconds)
+      chaosTimer.current--;
+      if (chaosTimer.current <= 0) {
+        chaosTimer.current = 900; // Reset every 15 seconds
+        const events = ['Tiny Mode', 'Reverse Controls', 'Wind Zone (Left)', 'Speed Frenzy', 'Ice Age'];
+        const chosen = events[Math.floor(Math.random() * events.length)];
+        setActiveChaosEvent(chosen);
+        setChaosAnnouncement(`⚠️ CHAOS EVENT: ${chosen.toUpperCase()}! ⚠️`);
+        setTimeout(() => setChaosAnnouncement(null), 3500);
 
-      const baseAccelSpeed = 0.35;
-      const friction = 0.08;
-
-      if (my.crashTimer > 0) {
-        // Recover gradually during recovery timer
-        my.vy *= 0.9;
-      } else {
-        // Accelerate
-        const maxScrollRate = my.boostTimer > 0 ? -19 : -12.5;
-        my.vy += accelInput * -baseAccelSpeed;
-        my.vy = Math.max(maxScrollRate, Math.min(0, my.vy * (1 - friction)));
+        // Reset chaos events after 8 seconds
+        setTimeout(() => {
+          setActiveChaosEvent(null);
+        }, 8000);
       }
 
-      // Apply positional changes
+      // Setup physics movement variables depending on chaos events
+      const isReverse = activeChaosEvent === 'Reverse Controls';
+      const isIce = activeChaosEvent === 'Ice Age' || gameMode === 'Space Dodge';
+      const isWindLeft = activeChaosEvent === 'Wind Zone (Left)';
+
+      // Running control logic
+      let lateralInput = 0;
+      if (keys['ArrowLeft'] || keys['a'] || keys['A']) lateralInput = isReverse ? 1 : -1;
+      if (keys['ArrowRight'] || keys['d'] || keys['D']) lateralInput = isReverse ? -1 : 1;
+
+      // Base gravity and speed caps
+      let gravity = gameMode === 'Space Dodge' ? 0.28 : 0.52;
+      const friction = isIce ? 0.025 : 0.16;
+      const baseAcceleration = 0.75;
+      const maxNormalSpeed = my.boostTimer > 0 ? 10.5 : 6.2;
+
+      // Height of players differs when sliding
+      const normalHeight = activeChaosEvent === 'Tiny Mode' ? 18 : 46;
+      const slideHeight = activeChaosEvent === 'Tiny Mode' ? 9 : 22;
+      const currentHeight = my.slideTimer > 0 ? slideHeight : normalHeight;
+
+      // Handle stuns / slips
+      const isRestrained = my.crashTimer > 0 || my.grabTimer > 0 || my.slipTimer > 0;
+
+      if (!isRestrained) {
+        // Build-up speed over time if moving forward consistently
+        if (lateralInput > 0) {
+          my.vx += baseAcceleration;
+          my.facingRight = true;
+        } else if (lateralInput < 0) {
+          my.vx -= baseAcceleration;
+          my.facingRight = false;
+        } else {
+          my.vx *= (1 - friction);
+        }
+
+        // Apply constant Wind drift
+        if (isWindLeft) {
+          my.vx -= 0.35;
+        }
+
+        // Limit maximum speed
+        my.vx = Math.max(-maxNormalSpeed, Math.min(maxNormalSpeed, my.vx));
+      } else {
+        // decay speed slowly when stunned
+        my.vx *= 0.94;
+      }
+
+      // SLIDERS: press S or ArrowDown to slide!
+      const isSlideTriggered = keys['ArrowDown'] || keys['s'] || keys['S'];
+      if (isSlideTriggered && my.slideCooldown <= 0 && my.isGrounded && !isRestrained) {
+        my.slideTimer = 35; // slide for 35 frames
+        my.slideCooldown = 65; // cooldown
+        my.vx = my.facingRight ? 11 : -11; // slide speed burst!
+        playBeep(220, 0.1, 'sine');
+      }
+
+      // DASH SHIFT Forward
+      const isDashTriggered = keys['Shift'] || keys['e'] || keys['E'];
+      if (isDashTriggered && my.dashCooldown <= 0 && !isRestrained) {
+        my.dashTimer = 18;
+        my.dashCooldown = 90; // 1.5s cooldown
+        my.vx = my.facingRight ? 17 : -17;
+        my.vy = -1.5; // subtle float
+        playBeep(650, 0.15, 'sawtooth');
+      }
+
+      // JUMP & DOUBLE JUMP
+      const isJumpPressed = keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W'];
+      if (isJumpPressed && !isRestrained) {
+        const canDoubleJump = my.doubleJumpsUsed < (my.tripleJumpTimer > 0 ? 2 : 1);
+        if (my.isGrounded) {
+          // Normal jump
+          my.vy = gameMode === 'Space Dodge' ? -8.5 : -11.5;
+          my.isGrounded = false;
+          my.doubleJumpsUsed = 0;
+          keysPressed.current[' '] = false; // consume press
+          keysPressed.current['ArrowUp'] = false;
+          keysPressed.current['w'] = false;
+          keysPressed.current['W'] = false;
+          playBeep(480, 0.12, 'triangle');
+        } else if (canDoubleJump) {
+          // Double jump allowed once in air
+          my.vy = gameMode === 'Space Dodge' ? -7.5 : -10.0;
+          my.doubleJumpsUsed++;
+          keysPressed.current[' '] = false; // consume press
+          keysPressed.current['ArrowUp'] = false;
+          keysPressed.current['w'] = false;
+          keysPressed.current['W'] = false;
+          playBeep(600, 0.1, 'triangle');
+        }
+      }
+
+      // Apply vertical gravity force
+      if (!my.isGrounded) {
+        my.vy += gravity;
+      }
+
+      // Apply coordinates calculations
       my.x += my.vx;
       my.y += my.vy;
 
-      // Bound car to standard neon lane constraints (left: 100px, right: 700px)
-      my.x = Math.max(120, Math.min(680, my.x));
+      // Bound player block to Map margins
+      my.x = Math.max(20, Math.min(MAP_LENGTH, my.x));
 
-      // 3. Evaluate deterministic obstacle boundary-checks (Local Authority)
-      const obstacleHit = checkCollisions(my.x, my.y);
-      if (obstacleHit && my.crashTimer <= 0) {
-        my.crashTimer = 90; // Frame buffer recovery timer (1.5 seconds)
-        my.boostTimer = 0; // Cancel current gains
-        my.vy = -1.5; // Drag down speed instantly
-        
-        if (gameMode === 'Space Dodge') {
-          my.score = Math.max(0, my.score - 150);
+      // 5. PLATFORMS & GAPS COLLISIONS
+      my.isGrounded = false;
+
+      // Check static platform boundaries
+      mapLayout.current.platforms.forEach((plat, idx) => {
+        const platOffset = fallStates.current[idx]?.yOffset || 0;
+        const currentPlatY = plat.y + platOffset;
+
+        // Disappearing blinking platform block (Blinks every 1.5 seconds)
+        if (plat.isDisappearing && Math.floor(Date.now() / 1500) % 2 === 0) {
+          return; // inactive
         }
 
-        playCrashSound();
-        sendGameEvent('crash', { username });
+        // Standard AABB Axis-Aligned side-scrolling platformer block intersection
+        const pw = plat.w;
+        const ph = plat.h;
+
+        const playerHalfW = (activeChaosEvent === 'Tiny Mode' ? 7 : 16);
+        const playerHalfH = currentHeight / 2;
+
+        if (
+          my.x + playerHalfW > plat.x &&
+          my.x - playerHalfW < plat.x + pw &&
+          my.y + playerHalfH > currentPlatY &&
+          my.y - playerHalfH < currentPlatY + ph
+        ) {
+          // Collision occurred! Did we fall on it from above?
+          if (my.vy >= 0 && (my.y - my.vy) + playerHalfH <= currentPlatY + 6) {
+            my.y = currentPlatY - playerHalfH;
+            my.vy = 0;
+            my.isGrounded = true;
+            my.doubleJumpsUsed = 0;
+
+            // Trigger trampoline jump
+            if (plat.isTrampoline) {
+              my.vy = -17;
+              my.isGrounded = false;
+              playBeep(700, 0.15, 'sawtooth');
+            }
+
+            // Trigger falling block shake!
+            if (plat.isFalling && (!fallStates.current[idx] || fallStates.current[idx].state === 'stable')) {
+              fallStates.current[idx] = { yOffset: 0, state: 'shaking', shakeTimer: 45 };
+              playBeep(180, 0.18, 'triangle');
+            }
+          } else {
+            // side/head bump, push outward
+            my.x -= my.vx;
+            my.vx = -my.vx * 0.3;
+          }
+        }
+      });
+
+      // Check moving platform collisions
+      mapLayout.current.movingPlatforms.forEach((plat) => {
+        // Calculate dynamic real-time moving coordinates
+        const now = Date.now();
+        const curX = plat.xBase + (plat.rangeX > 0 ? Math.sin(now * plat.speed) * plat.rangeX : 0);
+        const curY = plat.yBase + (plat.rangeY > 0 ? Math.sin(now * plat.speed) * plat.rangeY : 0);
+
+        const playerHalfW = (activeChaosEvent === 'Tiny Mode' ? 7 : 16);
+        const playerHalfH = currentHeight / 2;
+
+        if (
+          my.x + playerHalfW > curX &&
+          my.x - playerHalfW < curX + plat.w &&
+          my.y + playerHalfH > curY &&
+          my.y - playerHalfH < curY + plat.h
+        ) {
+          if (my.vy >= 0 && (my.y - my.vy) + playerHalfH <= curY + 6) {
+            my.y = curY - playerHalfH;
+            my.vy = 0;
+            my.isGrounded = true;
+            my.doubleJumpsUsed = 0;
+
+            // Carry player sideways or vertically along with platform movement!
+            if (plat.rangeX > 0) {
+              const platformVx = Math.cos(now * plat.speed) * plat.rangeX * plat.speed;
+              my.x += platformVx;
+            }
+          }
+        }
+      });
+
+      // 6. DETECT HAZARD HITS
+      mapLayout.current.hazards.forEach((haz) => {
+        // Compute pendulum block position or crusher piston height
+        let hX = haz.x;
+        let hY = haz.y;
+        const now = Date.now();
+
+        if (haz.type === 'blade') {
+          const angle = Math.sin(now * (haz.speed || 0.03)) * (haz.amp || 80) * (Math.PI / 180);
+          hX = haz.x + Math.sin(angle) * 120;
+          hY = haz.y + Math.cos(angle) * 120;
+        } else if (haz.type === 'crusher') {
+          // drops flat, then lifts up slowly
+          const loop = now % 3000;
+          if (loop < 500) {
+            hY = haz.y + (loop / 500) * 120; // dropping down rapidly
+          } else if (loop < 1100) {
+            hY = haz.y + 120; // flattened stay
+          } else {
+            hY = haz.y + 120 - ((loop - 1100) / 1900) * 120; // slow retreat up
+          }
+        } else if (haz.type === 'laser') {
+          // Blinks continuous state on/off
+          if (Math.floor(now / 1000) % 2 === 0) {
+            return; // safe laser is off
+          }
+        } else if (haz.type === 'barrel_spawner') {
+          // Barrel spawners sprout actual rotating physics barrels that fall/roll
+          barrelSpawnCooldown.current--;
+          if (barrelSpawnCooldown.current <= 0) {
+            barrelSpawnCooldown.current = 130; // spawn every 2.1 seconds
+            const bId = Math.random();
+            barrelsRef.current.push({
+              id: bId,
+              x: haz.x,
+              y: haz.y + 10,
+              vx: -4.5 - Math.random() * 2.5,
+              vy: 0,
+              radius: 14
+            });
+            setBarrels([...barrelsRef.current]);
+          }
+          return;
+        }
+
+        // Standard collision with the computed active target bounding box
+        const playerHalfW = (activeChaosEvent === 'Tiny Mode' ? 7 : 16);
+        const playerHalfH = currentHeight / 2;
+
+        if (
+          my.x + playerHalfW > hX - haz.w / 2 &&
+          my.x - playerHalfW < hX + haz.w / 2 &&
+          my.y + playerHalfH > hY - haz.h / 2 &&
+          my.y - playerHalfH < hY + haz.h / 2
+        ) {
+          triggerCheckpointRespawn();
+        }
+      });
+
+      // Check dynamic rolling barrels collisions
+      barrelsRef.current.forEach((bar, bIdx) => {
+        // Roll barrel on ground
+        bar.x += bar.vx;
+        bar.vy += 0.45; // gravity
+        bar.y += bar.vy;
+
+        // Collision with floor coordinates
+        if (bar.y >= GROUND_LEVEL - bar.radius) {
+          bar.y = GROUND_LEVEL - bar.radius;
+          bar.vy = -3.5 - Math.random() * 2; // bouncing barrels!
+        }
+
+        // Remove barrels out of bounds
+        if (bar.x < -100) {
+          barrelsRef.current.splice(bIdx, 1);
+          setBarrels([...barrelsRef.current]);
+          return;
+        }
+
+        const distance = Math.hypot(my.x - bar.x, my.y - bar.y);
+        if (distance < bar.radius + 18) {
+          triggerCheckpointRespawn();
+        }
+      });
+
+      // 7. BANANA SLIPS AND COINS/POWERUPS COLLECTION
+      bananaPeels.current.forEach((peel) => {
+        if (!peel.active) return;
+        const distance = Math.hypot(my.x - peel.x, my.y - peel.y);
+        if (distance < 24) {
+          peel.active = false;
+          my.slipTimer = 75; // slip helplessly for 1.25s (75 frames)
+          my.vx = my.facingRight ? 12 : -12; // slide uncontrollably
+          my.vy = -2.5;
+          playBeep(200, 0.4, 'sawtooth');
+        }
+      });
+
+      // Check powerups overlap
+      mapLayout.current.powerups.forEach((pw) => {
+        if (collectedBoostIds.has(pw.id)) return;
+        const distance = Math.hypot(my.x - pw.x, my.y - pw.y);
+        if (distance < 26) {
+          playBoostSound();
+          setCollectedBoostIds(prev => {
+            const up = new Set(prev);
+            up.add(pw.id);
+            return up;
+          });
+
+          // Apply specific powerups status coefficients
+          if (pw.type === 'speed') {
+            my.boostTimer = 180; // 3 seconds fast run
+          } else if (pw.type === 'shield') {
+            my.immunityTimer = 500; // Shield duration (8.3 seconds)
+          } else if (pw.type === 'triple_jump') {
+            my.tripleJumpTimer = 400; // Allows 3 air leaps
+          } else if (pw.type === 'immunity') {
+            my.immunityTimer = 450; // Iron body
+          } else if (pw.type === 'super_punch') {
+            my.superPunchTimer = 500;
+          } else if (pw.type === 'ghost') {
+            my.ghostTimer = 200; // Walk through players
+          }
+        }
+      });
+
+      // 8. FALL OFF CHASM HOLES death detection
+      if (my.y > GROUND_LEVEL + 120) {
+        my.statsFalls++;
+        triggerCheckpointRespawn();
       }
 
-      // 4. Evaluate Power boosts collections
-      const collectedBoost = checkBoostOverlaps(my.x, my.y);
-      if (collectedBoost !== null) {
-        my.boostTimer = 150; // Active speed pad frame loop (2.5 seconds)
-        
-        if (gameMode === 'Space Dodge') {
-          my.score = Math.min(1000, my.score + 100);
-        } else if (gameMode === 'Neon Coin Rush') {
-          my.score += 10;
-        } else if (gameMode === 'Parkour Extreme') {
-          my.score += 15; // points for parkour acrobatics or collecting stars
+      // 9. CHECKPOINTS ACTIVATION PROGRESS
+      mapLayout.current.checkpoints.forEach((checkpoint) => {
+        if (my.x >= checkpoint.x && checkpoint.x > my.latestCheckpointX) {
+          my.latestCheckpointX = checkpoint.x;
+          my.latestCheckpointLabel = checkpoint.label;
+          playBeep(520, 0.2, 'sine');
+          sendGameEvent('chat_log_broadcast', { text: `${username} activated Checkpoint: ${checkpoint.label}!` });
         }
+      });
 
-        playBoostSound();
-        setCollectedBoostIds(prev => {
-          const updated = new Set(prev);
-          updated.add(collectedBoost);
-          return updated;
+      // 10. EVALUATE ATTACEK PUNCH & GRABS COOLDOWN / HITBOX INTERSECTIONS
+      const isPunchKey = keys['f'] || keys['F'];
+      if (isPunchKey && my.punchCooldown <= 0 && !isRestrained) {
+        my.punchCooldown = 35; // punch animation frame length
+        const punchReach = my.superPunchTimer > 0 ? 110 : 55;
+        const targetHeadingX = my.x + (my.facingRight ? punchReach : -punchReach);
+
+        // Play quick swish beep sound
+        playBeep(600, 0.08, 'triangle');
+
+        // Loop over other players in lobby to verify punch hits
+        players.forEach((p) => {
+          if (p.id === currentUserId) return;
+          const otherX = p.x_position;
+          const otherY = p.y_position;
+
+          const dist = Math.hypot(targetHeadingX - otherX, my.y - otherY);
+          if (dist < 40) {
+            // Punch hit! Apply massive horizontal throw momentum
+            const throwKnockbackX = my.facingRight ? 14 : -14;
+            const throwKnockbackY = -4.5;
+
+            my.statsPunches++;
+            my.statsSabotages++;
+
+            // Broadcast combat hit to target through postgres realtime triggers safely
+            sendGameEvent('combat_hit', {
+              attackerId: currentUserId,
+              attackerName: username,
+              targetId: p.id,
+              type: 'punch',
+              vx: throwKnockbackX,
+              vy: throwKnockbackY
+            });
+            sendGameEvent('chat_log_broadcast', { text: `${username} punched ${p.username}!` });
+          }
         });
       }
 
-      // 5. Evaluate Finish Gate vs Looping
-      const isSpaceDodge = gameMode === 'Space Dodge';
-      if (isSpaceDodge) {
-        if (my.y <= 245) {
-          // Reset y and let boosts reborn on the looping canvas
-          my.y = 2800;
-          setCollectedBoostIds(new Set());
-        }
-      } else {
-        if (my.y <= 180 && !my.finished) {
-          my.finished = true;
-          playVictorySound();
-          // Submit final authoritative data with score
-          updatePlayerPosition(my.x, my.y, 0, 0, true, my.score, my.z);
-          
-          // Notify lobby victory
-          sendGameEvent('race_complete', {
-            username: username,
-            finishTime: Date.now(),
-            score: my.score
-          });
-          
-          // Push user to results screen
-          setTimeout(() => {
-            window.history.pushState(null, '', `/results/${code}`);
-            window.dispatchEvent(new Event('pushstate'));
-          }, 3000);
-        }
-      }
+      // 11. SOLID COMBAT COLLISION BODY BLOCKING & DASH CLASHES BETWEEN LOBBY PLAYERS
+      players.forEach((p) => {
+        if (p.id === currentUserId) return;
+        const otherX = p.x_position;
+        const otherY = p.y_position;
 
-      // Set visible speedometer value (relative)
-      setSpeedVal(Math.round(Math.abs(my.vy) * 15));
-    };
+        const distance = Math.hypot(my.x - otherX, my.y - otherY);
+        if (distance < 36 && my.ghostTimer <= 0) {
+          // Verify if top player is stomping the bottom player's head
+          const verticalOverlap = my.y + (currentHeight / 2) - (otherY - 20);
+          if (my.vy > 1.2 && verticalOverlap > 0 && my.y < otherY - 14) {
+            // BOUNCE BOOST!
+            my.vy = -12;
+            my.doubleJumpsUsed = 0;
+            my.isGrounded = false;
+            my.statsSabotages++;
 
-    // Local Helper to determine rect overlaps with altitude (z) jump height considerations
-    const checkCollisions = (cx: number, cy: number): boolean => {
-      const nowTime = Date.now();
-      const carW = 32;
-      const carH = 50;
-      const my = myPlayerRef.current;
-      const gameMode = room?.current_game || 'Obstacle Dash';
-      const obstacles = getActiveObstacles(gameMode);
-
-      for (const obs of obstacles) {
-        // Moving displacement matching drawing loop
-        const dx = obs.amp > 0 ? Math.sin(nowTime * obs.speed + obs.id) * obs.amp : 0;
-        const currentObsX = obs.xBase + dx;
-
-        // Perform standard AABB collision checking
-        if (
-          cx + carW / 2 > currentObsX - obs.w / 2 &&
-          cx - carW / 2 < currentObsX + obs.w / 2 &&
-          cy + carH / 2 > obs.y - obs.h / 2 &&
-          cy - carH / 2 < obs.y + obs.h / 2
-        ) {
-          // If we are currently in the air jumping, we can bypass obstacles that are on the ground Level!
-          if (my.z > 10) {
-            // Can jump over gaps, low safety hurdles, asteroids, or static ground panels.
-            // High Walls CANNOT be jumped over!
-            if (obs.style !== 'high-wall') {
-              continue;
-            }
+            // Stomp smash the bottom target
+            sendGameEvent('combat_hit', {
+              attackerId: currentUserId,
+              attackerName: username,
+              targetId: p.id,
+              type: 'stomp'
+            });
+            playBeep(800, 0.1, 'sawtooth');
+            return;
           }
-          return true;
+
+          // Shove / Momentum Transfer
+          const diffX = my.x - otherX;
+          const pushAmount = (Math.abs(my.vx) + 2.5) * 0.45;
+          my.vx += Math.sign(diffX) * pushAmount;
+
+          // Double Dash Clash recoil
+          const otherIsDashing = (p.velocity as any)?.isDashing;
+          if (my.dashTimer > 0 && otherIsDashing) {
+            my.vx = my.facingRight ? -14 : 14;
+            my.vy = -3;
+            my.crashTimer = 60; // Recoil dazed stun
+            playCrashSound();
+          }
         }
+      });
+
+      // 12. RUNNING OVER THE FINISH LINE PORTAL GATES
+      if (my.x >= 3800 && !my.finished) {
+        my.finished = true;
+        my.finishTime = Date.now();
+        playVictorySound();
+
+        // Calculate competitive final placement inside this dynamic lobby session
+        const finishedInRooms = players.filter(p => p.finished).length;
+        const placement = finishedInRooms + 1;
+        my.finishPlacement = placement;
+
+        // Broadcast final competitive race run stats to other lobby members
+        updatePlayerPosition(my.x, my.y, 0, 0, true, my.score, 0);
+        sendGameEvent('race_complete', {
+          username: username,
+          finishTime: my.finishTime,
+          placement: placement,
+          stats: {
+            deaths: my.statsDeaths,
+            punches: my.statsPunches,
+            falls: my.statsFalls,
+            sabotages: my.statsSabotages
+          }
+        });
+
+        // Push players to final GP grand results summary screen after a short wait
+        setTimeout(() => {
+          window.history.pushState(null, '', `/results/${code}`);
+          window.dispatchEvent(new Event('pushstate'));
+        }, 4000);
       }
-      return false;
+
+      // Sync React states
+      setSpeedVal(Math.round(Math.abs(my.vx) * 11));
+      setLocalStats({
+        deaths: my.statsDeaths,
+        punches: my.statsPunches,
+        falls: my.statsFalls,
+        sabotages: my.statsSabotages,
+        powerup: my.boostTimer > 0 ? 'Speed Hyper' : (my.immunityTimer > 0 ? 'Iron Shield' : (my.tripleJumpTimer > 0 ? 'Triple Jump' : (my.superPunchTimer > 0 ? 'Super Punch' : 'None')))
+      });
     };
 
-    const checkBoostOverlaps = (cx: number, cy: number): number | null => {
-      const carRadius = 25;
-      const gameMode = room?.current_game || 'Obstacle Dash';
-      const boosts = getActiveBoosts(gameMode);
-
-      for (const b of boosts) {
-        if (collectedBoostIds.has(b.id)) continue;
-
-        const distance = Math.hypot(cx - b.x, cy - b.y);
-        if (distance < carRadius + 18) {
-          return b.id;
-        }
-      }
-      return null;
+    const triggerCheckpointRespawn = () => {
+      const my = myPlayerRef.current;
+      playCrashSound();
+      my.statsDeaths++;
+      
+      // Flash red alert on background
+      my.x = my.latestCheckpointX;
+      my.y = GROUND_LEVEL - 50;
+      my.vx = 0;
+      my.vy = 0;
+      my.crashTimer = 40; // Stun recovery frame buffers (0.6s)
+      my.slideTimer = 0;
+      my.boostTimer = 0;
+      my.tripleJumpTimer = 0;
+      my.immunityTimer = 0;
     };
 
-    // RENDERING PIPELINE
+    // 13. SIDE-SCROLLING RENDERING ENGINE PIPELINE
     const drawGame = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -509,392 +1040,572 @@ export default function GameView({ code }: GameViewProps) {
 
       const my = myPlayerRef.current;
 
-      // Set canvas drawing dimensions from client boundaries
-      const clientW = canvas.parentElement?.clientWidth || 600;
-      canvas.width = 800; // Reference width
-      canvas.height = 700; // Reference height
+      // Fit layout bounds
+      canvas.width = CANVAS_WIDTH;
+      canvas.height = CANVAS_HEIGHT;
 
-      // Camera Y scroll tracking
-      const camY = my.y - 480;
+      // Dynamic side-scrolling camera interpolation locked to local player character
+      const camX = Math.max(0, Math.min(MAP_LENGTH - CANVAS_WIDTH, my.x - 220));
 
-      // 1. Draw track walls & road canvas
-      ctx.fillStyle = '#fcfbf9';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // 1. Render Scrolling Parallax Backgrounds
+      ctx.fillStyle = gameMode === 'Space Dodge' ? '#0f172a' : (gameMode === 'Neon Coin Rush' ? '#020617' : '#e0f2fe');
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // Grid helper details
-      ctx.strokeStyle = 'rgba(120, 113, 108, 0.06)';
-      ctx.lineWidth = 1;
-      for (let x = 100; x < 700; x += 40) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
-      }
-
-      const gridOffset = Math.floor(camY) % 40;
-      for (let y = -gridOffset; y < canvas.height; y += 40) {
-        ctx.beginPath();
-        ctx.moveTo(100, y);
-        ctx.lineTo(700, y);
-        ctx.stroke();
-      }
-
-      // Neon Lane Sidewalls
-      ctx.lineWidth = 3;
-      const gameMode = room?.current_game || 'Obstacle Dash';
-      
+      // Render mountains or star fields depending on the GP Track
       if (gameMode === 'Space Dodge') {
-        ctx.strokeStyle = '#7c3aed'; // Purple
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        for (let star = 0; star < 40; star++) {
+          const sX = (star * 112 - camX * 0.15 + MAP_LENGTH) % CANVAS_WIDTH;
+          const sY = (star * 37) % CANVAS_HEIGHT;
+          ctx.beginPath();
+          ctx.arc(sX, sY, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
       } else if (gameMode === 'Neon Coin Rush') {
-        ctx.strokeStyle = '#059669'; // Emerald
+        // Neon grid lines
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 0.5;
+        for (let l = 0; l < CANVAS_WIDTH; l += 50) {
+          ctx.beginPath();
+          ctx.moveTo(l - (camX * 0.35) % 50, 0);
+          ctx.lineTo(l - (camX * 0.35) % 50, CANVAS_HEIGHT);
+          ctx.stroke();
+        }
       } else {
-        ctx.strokeStyle = '#292524'; // Stone-800
-      }
-      
-      ctx.beginPath();
-      ctx.moveTo(100, 0);
-      ctx.lineTo(100, canvas.height);
-      ctx.moveTo(700, 0);
-      ctx.lineTo(700, canvas.height);
-      ctx.stroke();
-
-      // Warning dashes
-      if (gameMode === 'Space Dodge') {
-        ctx.fillStyle = 'rgba(124, 58, 237, 0.1)';
-      } else if (gameMode === 'Neon Coin Rush') {
-        ctx.fillStyle = 'rgba(5, 150, 105, 0.1)';
-      } else {
-        ctx.fillStyle = 'rgba(120, 113, 108, 0.08)';
+        // Natural wooden mountain vectors for Obstacle Dash
+        ctx.fillStyle = 'rgba(125, 211, 252, 0.45)';
+        ctx.beginPath();
+        ctx.moveTo(0, CANVAS_HEIGHT);
+        ctx.lineTo(150 - camX * 0.2, 280);
+        ctx.lineTo(400 - camX * 0.2, 420);
+        ctx.lineTo(650 - camX * 0.2, 330);
+        ctx.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.closePath();
+        ctx.fill();
       }
 
-      for (let y = 0; y < 3000; y += 120) {
-        const renderYOffset = y - camY;
-        if (renderYOffset > -50 && renderYOffset < canvas.height + 50) {
-          ctx.fillRect(95, renderYOffset, 10, 30);
-          ctx.fillRect(695, renderYOffset, 10, 30);
+      // Wind visual vectors
+      if (activeChaosEvent === 'Wind Zone (Left)') {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = 2;
+        const now = Date.now();
+        for (let windLine = 0; windLine < 8; windLine++) {
+          const wY = windLine * 70 + 40;
+          const wX = (now * 0.45 + windLine * 220) % CANVAS_WIDTH;
+          ctx.beginPath();
+          ctx.moveTo(wX, wY);
+          ctx.lineTo(wX - 45, wY);
+          ctx.stroke();
         }
       }
 
-      // 2. Draw Start/Finish lines (omitted in Space Dodge Survival)
-      if (gameMode !== 'Space Dodge') {
-        const finishY = 180 - camY;
-        ctx.fillStyle = '#059669';
-        ctx.fillRect(100, finishY - 5, 600, 10);
-        
-        // Checkerboard finish pattern
-        ctx.fillStyle = '#1c1917';
-        for (let cx = 100; cx < 700; cx += 30) {
-          if (Math.floor(cx / 30) % 2 === 0) {
-            ctx.fillRect(cx, finishY - 5, 15, 10);
+      // 2. Render Platforms
+      mapLayout.current.platforms.forEach((plat, idx) => {
+        const platOffset = fragilePlatforms[idx]?.yOffset || 0;
+        const px = plat.x - camX;
+        const py = plat.y + platOffset;
+
+        if (px + plat.w < -50 || px > CANVAS_WIDTH + 50) return; // Out of viewport
+
+        // Blinking Hologram state neon platforms
+        if (plat.isDisappearing && Math.floor(Date.now() / 1500) % 2 === 0) {
+          ctx.strokeStyle = 'rgba(6, 182, 212, 0.25)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 4]);
+          ctx.strokeRect(px, py, plat.w, plat.h);
+          ctx.setLineDash([]);
+          return;
+        }
+
+        // Draw Platform filling colors
+        if (plat.isTrampoline) {
+          ctx.fillStyle = '#f43f5e';
+        } else if (plat.style === 'wood') {
+          ctx.fillStyle = '#b45309'; // warm wood-brown
+        } else if (plat.style === 'neon') {
+          ctx.fillStyle = '#0f172a';
+        } else if (plat.style === 'ice') {
+          ctx.fillStyle = '#38bdf8'; // slippery light azure ice
+        } else {
+          ctx.fillStyle = '#57534e'; // grey quarry stone
+        }
+
+        ctx.fillRect(px, py, plat.w, plat.h);
+
+        // Render Platform Borders
+        if (plat.style === 'neon') {
+          ctx.strokeStyle = '#a21caf'; // purple glowing borders
+          ctx.lineWidth = 3;
+          ctx.strokeRect(px, py, plat.w, plat.h);
+        } else if (plat.style === 'ice') {
+          ctx.strokeStyle = '#e0f2fe';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(px, py, plat.w, plat.h);
+        } else {
+          ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(px, py, plat.w, plat.h);
+        }
+
+        // Draw trampoline springboards visual elements
+        if (plat.isTrampoline) {
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 8px monospace';
+          ctx.fillText('BOUNCER', px + 5, py + 8);
+        }
+      });
+
+      // Render Moving platforms
+      mapLayout.current.movingPlatforms.forEach((plat) => {
+        const now = Date.now();
+        const curX = plat.xBase + (plat.rangeX > 0 ? Math.sin(now * plat.speed) * plat.rangeX : 0);
+        const curY = plat.yBase + (plat.rangeY > 0 ? Math.sin(now * plat.speed) * plat.rangeY : 0);
+        const px = curX - camX;
+
+        ctx.fillStyle = '#d97706'; // brass platform
+        ctx.fillRect(px, curY, plat.w, plat.h);
+
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(px, curY, plat.w, plat.h);
+
+        // draw chains or tracks connecting the platform back to base anchor
+        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(plat.xBase - camX + plat.w / 2, plat.yBase);
+        ctx.lineTo(px + plat.w / 2, curY);
+        ctx.stroke();
+      });
+
+      // 3. Render Banana Peels on track
+      bananaPeels.current.forEach((peel) => {
+        if (!peel.active) return;
+        const px = peel.x - camX;
+        if (px < -50 || px > CANVAS_WIDTH + 50) return;
+
+        ctx.strokeStyle = '#eab308';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(px, peel.y, 8, Math.PI, Math.PI * 1.8);
+        ctx.stroke();
+
+        ctx.fillStyle = '#fef08a';
+        ctx.font = '6px sans-serif';
+        ctx.fillText('🍌', px - 4, peel.y - 2);
+      });
+
+      // 4. Render Powerups items on map
+      mapLayout.current.powerups.forEach((pw) => {
+        if (collectedBoostIds.has(pw.id)) return;
+        const px = pw.x - camX;
+        if (px < -40 || px > CANVAS_WIDTH + 40) return;
+
+        // Floating hover
+        const yHover = pw.y + Math.sin(Date.now() * 0.005 + pw.id) * 6;
+
+        const colors = {
+          speed: '#10b981',
+          shield: '#3b82f6',
+          triple_jump: '#a855f7',
+          immunity: '#f59e0b',
+          super_punch: '#ec4899',
+          ghost: '#64748b'
+        };
+
+        const logos = {
+          speed: '⚡',
+          shield: '🛡️',
+          triple_jump: '🦘',
+          immunity: '💎',
+          super_punch: '🥊',
+          ghost: '👻'
+        };
+
+        // Outermost outer glowing aura
+        ctx.beginPath();
+        ctx.arc(px, yHover, 13, 0, Math.PI * 2);
+        ctx.fillStyle = colors[pw.type] + '33';
+        ctx.fill();
+
+        // Core filling
+        ctx.beginPath();
+        ctx.arc(px, yHover, 10, 0, Math.PI * 2);
+        ctx.fillStyle = colors[pw.type];
+        ctx.fill();
+
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Symbol text
+        ctx.fillStyle = '#fff';
+        ctx.font = '9px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(logos[pw.type], px, yHover);
+      });
+
+      // 5. Render active Hazards (Spikes, pendulums, crushers)
+      mapLayout.current.hazards.forEach((haz) => {
+        const now = Date.now();
+        let hX = haz.x;
+        let hY = haz.y;
+
+        if (haz.type === 'blade') {
+          const angle = Math.sin(now * (haz.speed || 0.03)) * (haz.amp || 80) * (Math.PI / 180);
+          hX = haz.x + Math.sin(angle) * 120;
+          hY = haz.y + Math.cos(angle) * 120;
+
+          // Drawing string/chord
+          ctx.strokeStyle = '#475569';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(haz.x - camX, haz.y);
+          ctx.lineTo(hX - camX, hY);
+          ctx.stroke();
+        } else if (haz.type === 'crusher') {
+          const loop = now % 3000;
+          if (loop < 500) {
+            hY = haz.y + (loop / 500) * 120;
+          } else if (loop < 1100) {
+            hY = haz.y + 120;
+          } else {
+            hY = haz.y + 120 - ((loop - 1100) / 1900) * 120;
           }
         }
-      }
 
-      // 3. Draw Deterministic Power Boost nodes
-      const activeBoostsList = getActiveBoosts(gameMode);
-      for (const b of activeBoostsList) {
-        if (collectedBoostIds.has(b.id)) continue;
+        const px = hX - camX;
+        if (px + haz.w < -100 || px > CANVAS_WIDTH + 100) return;
 
-        const by = b.y - camY;
-        if (by > -30 && by < canvas.height + 30) {
-          if (b.type === 'coin') {
-            // Draw a shiny gold coin
+        if (haz.type === 'spike') {
+          // Render jagged metallic row
+          ctx.fillStyle = '#e11d48'; // warning red spikes
+          for (let sp = px - haz.w / 2; sp < px + haz.w / 2; sp += 15) {
             ctx.beginPath();
-            ctx.arc(b.x, by, 10, 0, Math.PI * 2);
-            ctx.fillStyle = '#f59e0b'; // Amber-500
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-
-            // Inner circle
-            ctx.beginPath();
-            ctx.arc(b.x, by, 6, 0, Math.PI * 2);
-            ctx.strokeStyle = '#dfa207';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          } else if (b.type === 'shield') {
-            // Draw purple shield
-            ctx.beginPath();
-            ctx.arc(b.x, by, 12, 0, Math.PI * 2);
-            ctx.fillStyle = '#8b5cf6'; // Violet-500
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-
-            // S letter indicator symbol
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 9px monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('🛡️', b.x, by);
-          } else if (b.type === 'parkour-boost') {
-            // Draw cute neon blue spring/feather jump pad
-            ctx.beginPath();
-            ctx.arc(b.x, by, 12, 0, Math.PI * 2);
-            ctx.fillStyle = '#06b6d4'; // Cyan-500
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 9px monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('⚡', b.x, by);
-          } else {
-            // Speed pad style
-            ctx.beginPath();
-            ctx.arc(b.x, by, 12, 0, Math.PI * 2);
-            ctx.fillStyle = '#059669';
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Speed chevron design
-            ctx.fillStyle = '#fff';
-            ctx.beginPath();
-            ctx.moveTo(b.x - 4, by + 4);
-            ctx.lineTo(b.x, by - 4);
-            ctx.lineTo(b.x + 4, by + 4);
+            ctx.moveTo(sp, haz.y);
+            ctx.lineTo(sp + 7.5, haz.y - haz.h);
+            ctx.lineTo(sp + 15, haz.y);
             ctx.closePath();
             ctx.fill();
           }
+        } else if (haz.type === 'blade') {
+          // Pendulum circular spinning saw
+          ctx.fillStyle = '#64748b';
+          ctx.beginPath();
+          ctx.arc(px, hY, haz.w / 2, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = '#e11d48';
+          ctx.lineWidth = 35;
+          ctx.setLineDash([4, 6]);
+          ctx.beginPath();
+          ctx.arc(px, hY, haz.w / 2 - 2, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        } else if (haz.type === 'crusher') {
+          // Piston slab
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(px - haz.w / 2, hY - haz.h / 2, haz.w, haz.h);
+
+          // Yellow caution bands
+          ctx.fillStyle = '#fbbf24';
+          ctx.fillRect(px - haz.w / 2, hY - haz.h / 2 + 10, haz.w, 15);
+          ctx.fillStyle = '#000';
+          ctx.font = 'bold 8px monospace';
+          ctx.fillText('CRUSHER', px - 18, hY - haz.h / 2 + 21);
+        } else if (haz.type === 'laser') {
+          // Vertical red lasers
+          ctx.strokeStyle = '#f43f5e';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(px, haz.y);
+          ctx.lineTo(px, haz.y + haz.h);
+          ctx.stroke();
+
+          // Outer bloom glow
+          ctx.strokeStyle = 'rgba(244, 63, 94, 0.4)';
+          ctx.lineWidth = 11;
+          ctx.stroke();
         }
-      }
+      });
 
-      // 4. Draw Deterministic Moving Obstacles (Dynamic based on selected active arena)
-      const nowTime = Date.now();
-      const currentObstaclesList = getActiveObstacles(gameMode);
-      for (const obs of currentObstaclesList) {
-        const oy = obs.y - camY;
-        if (oy > -100 && oy < canvas.height + 100) {
-          // Floating wave equation (if amplitude > 0)
-          const dx = obs.amp > 0 ? Math.sin(nowTime * obs.speed + obs.id) * obs.amp : 0;
-          const currentObsX = obs.xBase + dx;
+      // Render Dynamic barrels
+      barrels.forEach((bar) => {
+        const px = bar.x - camX;
+        ctx.save();
+        ctx.translate(px, bar.y);
+        ctx.rotate(Date.now() * -0.015); // spins backwards!
 
-          if (obs.style === 'asteroid') {
-            // Draw cool detailed asteroid
-            ctx.beginPath();
-            ctx.arc(currentObsX, oy, obs.w / 2, 0, Math.PI * 2);
-            ctx.fillStyle = '#4a2511'; // brownish asteroid
-            ctx.fill();
-            ctx.strokeStyle = '#ea580c'; // fiery borders
-            ctx.lineWidth = 2;
-            ctx.stroke();
+        // Outer wood barrel wheel
+        ctx.beginPath();
+        ctx.arc(0, 0, bar.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#78350f';
+        ctx.fill();
 
-            // Draw craters
-            ctx.fillStyle = '#2d1508';
-            ctx.beginPath();
-            ctx.arc(currentObsX - obs.w / 5, oy - obs.h / 5, obs.w / 8, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(currentObsX + obs.w / 4, oy + obs.h / 6, obs.w / 6, 0, Math.PI * 2);
-            ctx.fill();
-          } else if (obs.style === 'floor-gap') {
-            // Draw a bottomless pit in the track floor (must jump over!)
-            ctx.fillStyle = '#1c1917'; // track background
-            ctx.fillRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
-            
-            // Draw hazard glowing yellow/orange dashed boundaries
-            ctx.strokeStyle = '#ef4444';
-            ctx.lineWidth = 3;
-            ctx.setLineDash([6, 4]);
-            ctx.strokeRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
-            ctx.setLineDash([]); // clear dash
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
 
-            // Draw text warning "GAP!" if screen size allows
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
-            ctx.font = 'bold 10px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText('⚠️ CHASM ⚠️', currentObsX, oy + 3);
-          } else if (obs.style === 'high-wall') {
-            // Huge orange glowing hazard wall
-            ctx.fillStyle = '#ea580c';
-            ctx.fillRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
+        // Draw spokes
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-bar.radius, 0); ctx.lineTo(bar.radius, 0);
+        ctx.moveTo(0, -bar.radius); ctx.lineTo(0, bar.radius);
+        ctx.stroke();
 
-            // Highlight border
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
+        ctx.restore();
+      });
 
-            // Hazard lines
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            for (let xl = currentObsX - obs.w / 2; xl < currentObsX + obs.w / 2; xl += 15) {
-              ctx.moveTo(xl, oy - obs.h / 2);
-              ctx.lineTo(xl + 10, oy + obs.h / 2);
-            }
-            ctx.stroke();
-          } else if (obs.style === 'low-hurdle') {
-            // Yellow warning hurdle
-            ctx.fillStyle = '#eab308';
-            ctx.beginPath();
-            ctx.roundRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h, 4);
-            ctx.fill();
-            
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
+      // Render Checkpoints
+      mapLayout.current.checkpoints.forEach((checkpoint) => {
+        const px = checkpoint.x - camX;
+        if (px < -50 || px > CANVAS_WIDTH + 50) return;
 
-            ctx.fillStyle = '#000';
-            ctx.font = 'bold 8px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText('JUMP OVER', currentObsX, oy + 3);
-          } else if (obs.style === 'energy-gate') {
-            // Cyan glowing energy gate
-            ctx.fillStyle = 'rgba(6, 182, 212, 0.2)';
-            ctx.fillRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
+        // Draw checkpoint flag pole
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(px, GROUND_LEVEL);
+        ctx.lineTo(px, GROUND_LEVEL - 70);
+        ctx.stroke();
 
-            ctx.strokeStyle = '#06b6d4';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
-          } else {
-            // Obstacle Dash styles
-            ctx.fillStyle = obs.style === 'neon-red' ? '#78716c' : (obs.style === 'cyber-barrier' ? '#44403c' : '#a8a29e');
-            ctx.beginPath();
-            ctx.roundRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h, 6);
-            ctx.fill();
+        const isActivated = my.latestCheckpointX >= checkpoint.x;
 
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+        // Wave banner
+        ctx.fillStyle = isActivated ? '#22c55e' : '#64748b'; // Green activated, grey inactive
+        ctx.beginPath();
+        ctx.moveTo(px, GROUND_LEVEL - 70);
+        ctx.lineTo(px + 24, GROUND_LEVEL - 60 + Math.sin(Date.now() * 0.01) * 3);
+        ctx.lineTo(px, GROUND_LEVEL - 50);
+        ctx.closePath();
+        ctx.fill();
+
+        // Label flag tag
+        ctx.fillStyle = '#334155';
+        ctx.font = '8px sans-serif';
+        ctx.fillText(checkpoint.label, px - 15, GROUND_LEVEL - 76);
+      });
+
+      // 6. DRAW CHECKERED FINISH LINE PORTAL
+      const finishPortalX = 3800 - camX;
+      if (finishPortalX > -150 && finishPortalX < CANVAS_WIDTH + 150) {
+        // High arch support beams
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(finishPortalX - 10, GROUND_LEVEL - 180, 20, 180);
+
+        // Grid checkered banner panel
+        const checkedBlockSize = 8;
+        for (let row = 0; row < 3; row++) {
+          for (let col = 0; col < 12; col++) {
+            const blkX = finishPortalX - 48 + col * checkedBlockSize;
+            const blkY = GROUND_LEVEL - 170 + row * checkedBlockSize;
+            ctx.fillStyle = (row + col) % 2 === 0 ? '#000' : '#fff';
+            ctx.fillRect(blkX, blkY, checkedBlockSize, checkedBlockSize);
           }
         }
+
+        // TEXT GLOW GOAL
+        ctx.fillStyle = '#10b981';
+        ctx.font = 'bold 15px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('🏆 WINNER 🏆', finishPortalX, GROUND_LEVEL - 184);
       }
 
-      // 5. Draw REST OF PLAYERS (Interpolated target positions)
+      // 7. DRAW OTHER PLAYERS (INTERPOLATED TARGETS)
       players.forEach((plyr) => {
-        if (plyr.id === currentUserId) return; // Wait to paint ourselves last for proper overlays
+        if (plyr.id === currentUserId) return; // Draw ourselves last
 
         let lerpObj = interpolationsRef.current[plyr.id];
         if (!lerpObj) {
           interpolationsRef.current[plyr.id] = {
             x: plyr.x_position,
             y: plyr.y_position,
-            vx: plyr.velocity?.x || 0,
-            vy: plyr.velocity?.y || 0,
+            vx: (plyr.velocity as any)?.x || 0,
+            vy: (plyr.velocity as any)?.y || 0,
             finished: plyr.finished,
             score: plyr.score || 0,
-            z: plyr.velocity?.z || 0
+            z: 0,
+            deaths: (plyr.velocity as any)?.deaths || 0,
+            punches: (plyr.velocity as any)?.punches || 0,
+            falls: (plyr.velocity as any)?.falls || 0,
+            sabotages: (plyr.velocity as any)?.sabotages || 0,
+            isSliding: (plyr.velocity as any)?.isSliding || false,
+            isDashing: (plyr.velocity as any)?.isDashing || false,
+            isPunching: (plyr.velocity as any)?.isPunching || false,
+            isStunned: (plyr.velocity as any)?.isStunned || false,
+            shieldActive: (plyr.velocity as any)?.shieldActive || false
           };
           lerpObj = interpolationsRef.current[plyr.id];
         } else {
-          // Linear interpolation coefficient towards updated target
-          lerpObj.x += (plyr.x_position - lerpObj.x) * 0.18;
-          lerpObj.y += (plyr.y_position - lerpObj.y) * 0.18;
-          lerpObj.vx += ((plyr.velocity?.x || 0) - lerpObj.vx) * 0.18;
-          lerpObj.vy += ((plyr.velocity?.y || 0) - lerpObj.vy) * 0.18;
-          lerpObj.z += ((plyr.velocity?.z || 0) - lerpObj.z) * 0.18;
+          // Lerp vectors
+          lerpObj.x += (plyr.x_position - lerpObj.x) * 0.16;
+          lerpObj.y += (plyr.y_position - lerpObj.y) * 0.16;
+          lerpObj.vx += (((plyr.velocity as any)?.x || 0) - lerpObj.vx) * 0.16;
+          lerpObj.vy += (((plyr.velocity as any)?.y || 0) - lerpObj.vy) * 0.16;
           lerpObj.finished = plyr.finished;
           lerpObj.score = plyr.score || 0;
+          lerpObj.deaths = (plyr.velocity as any)?.deaths || 0;
+          lerpObj.punches = (plyr.velocity as any)?.punches || 0;
+          lerpObj.falls = (plyr.velocity as any)?.falls || 0;
+          lerpObj.sabotages = (plyr.velocity as any)?.sabotages || 0;
+          lerpObj.isSliding = (plyr.velocity as any)?.isSliding || false;
+          lerpObj.isDashing = (plyr.velocity as any)?.isDashing || false;
+          lerpObj.isPunching = (plyr.velocity as any)?.isPunching || false;
+          lerpObj.isStunned = (plyr.velocity as any)?.isStunned || false;
+          lerpObj.shieldActive = (plyr.velocity as any)?.shieldActive || false;
         }
 
-        const ry = lerpObj.y - camY;
-        if (ry > -50 && ry < canvas.height + 50) {
-          drawCarObject(ctx, lerpObj.x, ry, plyr.username, false, !!plyr.finished, false, 0, lerpObj.z);
+        const ry = lerpObj.y;
+        const px = lerpObj.x - camX;
+
+        if (px > -40 && px < CANVAS_WIDTH + 40) {
+          drawCharacterSprite(
+            ctx,
+            px,
+            ry,
+            plyr.username,
+            false,
+            lerpObj.finished,
+            lerpObj.isStunned,
+            lerpObj.isSliding,
+            lerpObj.isDashing,
+            lerpObj.isPunching,
+            lerpObj.shieldActive
+          );
         }
       });
 
-      // 6. Draw LOCAL PLAYER
-      const localRy = my.y - camY;
-      drawCarObject(
+      // 8. DRAW LOCAL PLAYER
+      const myRy = my.y;
+      const myPx = my.x - camX;
+      drawCharacterSprite(
         ctx,
-        my.x,
-        localRy,
+        myPx,
+        myRy,
         username,
         true,
         my.finished,
-        my.crashTimer > 0,
-        my.boostTimer,
-        my.z
+        my.crashTimer > 0 || my.grabTimer > 0 || my.slipTimer > 0,
+        my.slideTimer > 0,
+        my.dashTimer > 0,
+        my.punchCooldown > 20,
+        my.immunityTimer > 0
       );
     };
 
-    // Core Car Drawer SVG pipeline with jump height (z) rendering support
-    const drawCarObject = (
+    // Vector sprite drawer for individual player blocks
+    const drawCharacterSprite = (
       ctx: CanvasRenderingContext2D,
       cx: number,
       cy: number,
       uName: string,
       isSelf: boolean,
       finished: boolean,
-      crashed: boolean,
-      boostFrames: number,
-      z = 0
+      isStunned: boolean,
+      isSliding: boolean,
+      isDashing: boolean,
+      isPunching: boolean,
+      shieldActive: boolean
     ) => {
       ctx.save();
 
-      // Draw Ground Shadow under the car based on altitude altitude
-      const shadowScale = Math.max(0.3, 1 - z / 85);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, 14 * shadowScale, 8 * shadowScale, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      const renderY = cy - z;
-
-      // Jet engines visual particles trailing behind
-      if (Math.abs(myPlayerRef.current.vy) > 2) {
-        ctx.fillStyle = boostFrames > 0 ? '#10b981' : '#78716c';
-        const trailLength = boostFrames > 0 ? 15 : 8;
-        ctx.fillRect(cx - 8, renderY + 25, 4, trailLength);
-        ctx.fillRect(cx + 4, renderY + 25, 4, trailLength);
+      // Tiny Mode scales down
+      const isTiny = activeChaosEvent === 'Tiny Mode';
+      if (isTiny) {
+        ctx.translate(cx, cy);
+        ctx.scale(0.45, 0.45);
+        ctx.translate(-cx, -cy);
       }
 
-      // Base body color
-      ctx.fillStyle = isSelf ? '#1c1917' : '#78716c'; // Dark slate charcoal self, warm gray team
-      if (crashed) {
-        ctx.fillStyle = '#a8a29e'; // Grey debris
+      // 1. Draw Ground Shadow vector
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + (isSliding ? 11 : 23), isSliding ? 18 : 12, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Dashing breeze path shadows
+      if (isDashing) {
+        ctx.fillStyle = isSelf ? 'rgba(59, 130, 246, 0.25)' : 'rgba(120, 113, 108, 0.25)';
+        ctx.fillRect(cx - (myPlayerRef.current.facingRight ? 45 : -25), cy - (isSliding ? 11 : 23), 20, isSliding ? 22 : 46);
+      }
+
+      // Base design colors
+      ctx.fillStyle = isSelf ? '#1e3a8a' : '#475569'; // Blue self, Grey enemy
+      if (isStunned) {
+        ctx.fillStyle = '#dc2626'; // Red dazed
       }
       if (finished) {
-        ctx.fillStyle = '#059669'; // Green victory
+        ctx.fillStyle = '#10b981'; // Green complete
       }
 
-      // Main Capsule shape
+      // Draw sliding or solid vertical rectangular player body capsule
       ctx.beginPath();
-      ctx.roundRect(cx - 15, renderY - 25, 30, 50, 4);
+      if (isSliding) {
+        ctx.roundRect(cx - 18, cy - 11, 36, 22, 6);
+      } else {
+        ctx.roundRect(cx - 13, cy - 23, 26, 46, 8);
+      }
       ctx.fill();
 
-      // Tires
-      ctx.fillStyle = '#292524';
-      ctx.fillRect(cx - 17, renderY - 18, 3, 8);
-      ctx.fillRect(cx + 14, renderY - 18, 3, 8);
-      ctx.fillRect(cx - 17, renderY + 8, 3, 8);
-      ctx.fillRect(cx + 14, renderY + 8, 3, 8);
+      // Face bandanna or eye indicators
+      ctx.fillStyle = '#fff';
+      const lookDirX = myPlayerRef.current.facingRight ? cx + 5 : cx - 12;
+      ctx.fillRect(lookDirX, cy - 14, 7, 5);
 
-      // Windshield glass
-      ctx.fillStyle = '#f5f5f4';
+      ctx.fillStyle = '#000';
+      ctx.fillRect(lookDirX + (myPlayerRef.current.facingRight ? 4 : 1), cy - 12, 2, 2);
+
+      // Cute bandanna ribbon flinging behind
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.roundRect(cx - 9, renderY - 12, 18, 14, 1);
-      ctx.fill();
+      const tailX = myPlayerRef.current.facingRight ? cx - 15 : cx + 15;
+      ctx.moveTo(tailX, cy - 14);
+      ctx.lineTo(tailX - (myPlayerRef.current.facingRight ? 6 : -6), cy - 10 + Math.sin(Date.now() * 0.01) * 3);
+      ctx.stroke();
 
-      // High-contrast custom label tag
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      ctx.font = 'bold 11px system-ui, sans-serif';
-      const measure = ctx.measureText(uName);
-      ctx.fillRect(cx - measure.width / 2 - 4, renderY - 44, measure.width + 8, 16);
-
-      ctx.strokeStyle = 'rgba(120, 113, 108, 0.3)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(cx - measure.width / 2 - 4, renderY - 44, measure.width + 8, 16);
-
-      ctx.fillStyle = '#1c1917';
-      ctx.textAlign = 'center';
-      ctx.fillText(uName, cx, renderY - 32);
-
-      // Glowing powerup halo
-      if (boostFrames > 0) {
-        ctx.strokeStyle = 'rgba(5, 150, 105, 0.6)';
-        ctx.lineWidth = 2;
+      // Punch fist vector triggered during cooling
+      if (isPunching) {
+        ctx.fillStyle = '#fbbf24';
+        const fistX = myPlayerRef.current.facingRight ? cx + 22 : cx - 28;
         ctx.beginPath();
-        ctx.arc(cx, renderY, 32, 0, Math.PI * 2);
+        ctx.arc(fistX, cy - 4, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 1;
         ctx.stroke();
       }
+
+      // Draw Spinning stars indicating Dazed/Stun states
+      if (isStunned) {
+        ctx.fillStyle = '#fef08a';
+        ctx.font = '8px system-ui';
+        const spinX = cx + Math.sin(Date.now() * 0.02) * 14;
+        const spinY = cy - 31;
+        ctx.fillText('⭐', spinX - 3, spinY);
+      }
+
+      // Shield overlay
+      if (shieldActive) {
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.75)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Username tag above head
+      ctx.fillStyle = isSelf ? 'rgba(30, 58, 138, 0.95)' : 'rgba(71, 85, 105, 0.9)';
+      ctx.font = 'bold 10px monospace';
+      const measure = ctx.measureText(uName);
+      ctx.fillRect(cx - measure.width / 2 - 4, cy - 38, measure.width + 8, 13);
+
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.fillText(uName, cx, cy - 28);
 
       ctx.restore();
     };
@@ -903,7 +1614,7 @@ export default function GameView({ code }: GameViewProps) {
     return () => {
       cancelAnimationFrame(animationId);
     };
-  }, [players, collectedBoostIds]);
+  }, [players, collectedBoostIds, fragilePlatforms, activeChaosEvent, barrels]);
 
   const handleReturnToLobby = async () => {
     await leaveRoom();
@@ -911,212 +1622,230 @@ export default function GameView({ code }: GameViewProps) {
     window.dispatchEvent(new Event('pushstate'));
   };
 
-  // Compile real distance completion calculations
-  const myY = myPlayerRef.current.y;
-  const progressPercent = Math.max(0, Math.min(100, Math.round(((2850 - myY) / 2670) * 100)));
+  const myX = myPlayerRef.current.x;
+  const progressPercent = Math.max(0, Math.min(100, Math.round(((myX - 150) / 3650) * 100)));
 
-  // Live sidebar leaderboard
-  interface LeaderboardEntry {
-    name: string;
-    progress: number;
-    finished: boolean;
-    score: number;
-    isSelf: boolean;
-  }
-
-  const gameMode = room?.current_game || 'Obstacle Dash';
-
-  const sortedLeadboard: LeaderboardEntry[] = players
+  // Competitive realtime rankings sorted based on horizontal distance or finished flags
+  const sortedLeadboard = [...players]
     .map(p => {
       const isSelf = p.id === currentUserId;
-      let playerY = p.y_position;
+      let playerX = p.x_position;
       let playerScore = p.score || 0;
+      let pFinished = p.finished;
       
+      let pDeaths = (p.velocity as any)?.deaths || 0;
+      let pPunches = (p.velocity as any)?.punches || 0;
+      let pFalls = (p.velocity as any)?.falls || 0;
+      let pSabotages = (p.velocity as any)?.sabotages || 0;
+
       if (isSelf) {
-        playerY = myPlayerRef.current.y;
+        playerX = myPlayerRef.current.x;
         playerScore = myPlayerRef.current.score;
+        pFinished = myPlayerRef.current.finished;
+        pDeaths = myPlayerRef.current.statsDeaths;
+        pPunches = myPlayerRef.current.statsPunches;
+        pFalls = myPlayerRef.current.statsFalls;
+        pSabotages = myPlayerRef.current.statsSabotages;
       }
 
-      const pct = Math.max(0, Math.min(100, Math.round(((2850 - playerY) / 2670) * 100)));
+      const pct = Math.max(0, Math.min(100, Math.round(((playerX - 150) / 3650) * 100)));
       return {
         name: p.username,
         progress: pct,
-        finished: isSelf ? myPlayerRef.current.finished : p.finished,
+        finished: pFinished,
         score: playerScore,
+        deaths: pDeaths,
+        punches: pPunches,
+        falls: pFalls,
+        sabotages: pSabotages,
         isSelf
       };
     })
     .sort((a, b) => {
-      if (gameMode === 'Space Dodge') {
-        const aFinDef = a.finished ? 1 : 0;
-        const bFinDef = b.finished ? 1 : 0;
-        if (aFinDef !== bFinDef) return bFinDef - aFinDef;
-        return b.score - a.score;
-      } else if (gameMode === 'Neon Coin Rush') {
-        const aFinDef = a.finished ? 1 : 0;
-        const bFinDef = b.finished ? 1 : 0;
-        if (aFinDef !== bFinDef) return bFinDef - aFinDef;
-        if (b.score !== a.score) return b.score - a.score;
-        return b.progress - a.progress;
-      } else {
-        const aFinDef = a.finished ? 1 : 0;
-        const bFinDef = b.finished ? 1 : 0;
-        if (aFinDef !== bFinDef) return bFinDef - aFinDef;
-        return b.progress - a.progress;
-      }
+      if (a.finished && !b.finished) return -1;
+      if (!a.finished && b.finished) return 1;
+      return b.progress - a.progress;
     });
 
   return (
-    <div ref={containerRef} className="w-full max-w-7xl mx-auto p-4 md:py-8 text-stone-800 min-h-[85vh]">
+    <div ref={containerRef} className="w-full max-w-7xl mx-auto p-4 md:py-6 text-stone-800 min-h-[90vh]">
       
-      {/* Game navigation banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      {/* Banner / Title Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 border-b border-stone-100 pb-4">
         <div>
           <button
             onClick={handleReturnToLobby}
-            className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-750 transition-colors mb-2"
+            className="flex items-center gap-1 text-[11px] text-stone-400 hover:text-stone-700 transition-colors mb-1.5 font-bold font-mono tracking-wider uppercase"
           >
-            <ArrowLeft size={12} /> Disconnect from session
+            <ArrowLeft size={10} /> Disconnect Race Game
           </button>
           
-          <h1 className="text-xl md:text-2xl font-bold uppercase tracking-tight flex items-center gap-2 text-stone-950">
-            <Orbit className={`${gameMode === 'Space Dodge' ? 'text-stone-600' : (gameMode === 'Neon Coin Rush' ? 'text-stone-600' : 'text-stone-900')} animate-spin`} style={{ animationDuration: '6s' }} size={20} />
-            {gameMode}
+          <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight flex items-center gap-2 text-stone-900 font-mono">
+            <Orbit className="text-stone-700 animate-spin" style={{ animationDuration: '6s' }} size={20} />
+            {gameMode} Track Session
           </h1>
-          <p className="text-xs text-stone-500 font-light max-w-xl">
-            {gameMode === 'Space Dodge'
-              ? 'Survive the endless space debris! Avoid asteroids and collisions to preserve your shields.'
-              : gameMode === 'Neon Coin Rush'
-              ? 'Gather glowing energy node diamonds to maximize your high score before crossing the finish line.'
-              : 'Dodge dynamic obstacles, grab glowing speed pads and reach the finish line first.'}
+          <p className="text-xs text-stone-500 font-mono">
+            Race to the right finish line! Punch enemies with <kbd className="bg-stone-100 border px-1 py-0.5 rounded text-[10px] font-bold">F</kbd>, slip on banana peels, slide through tight vaults, and avoid pendulums spike clusters!
           </p>
         </div>
 
-        {/* Action guidelines */}
-        <div className="flex items-center gap-3 text-xs bg-white border border-stone-200 p-2.5 rounded-xl shadow-xs">
-          <Zap className="text-stone-500 fill-stone-500 animate-bounce" size={14} />
-          <span className="text-stone-600 font-bold font-mono text-[10px] uppercase">Use W, S, A, D or Arrows to control!</span>
-        </div>
+        {/* Live Active Chaos Alerts Banner */}
+        <AnimatePresence>
+          {chaosAnnouncement && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.85, y: -10 }}
+              className="bg-amber-500 border-2 border-amber-600 text-stone-950 px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 font-mono"
+            >
+              <AlertTriangle size={15} className="animate-bounce" />
+              <span className="text-xs font-black tracking-wide">{chaosAnnouncement}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         
-        {/* SIDE BAR DASH PANEL */}
-        <div className="lg:col-span-1 flex flex-col gap-5">
+        {/* SIDEBAR telemetry board */}
+        <div className="lg:col-span-1 flex flex-col gap-4">
           
-          {/* Real-time Speeder */}
-          <div className="bg-white border border-stone-200 p-5 rounded-2xl shadow-xs">
-            {gameMode === 'Space Dodge' ? (
-              <>
-                <h3 className="font-bold uppercase tracking-wider text-xs text-stone-500 mb-3 flex items-center gap-1.5 border-b border-stone-150 pb-2">
-                  <Compass size={14} /> Shield Integrity
-                </h3>
-                <div className="text-center py-2">
-                  <span className="text-3xl font-black font-mono text-stone-900">
-                    {myPlayerRef.current.score}
-                  </span>
-                  <span className="text-xs text-stone-400 font-bold uppercase tracking-wider ml-1">HP</span>
-                </div>
-              </>
-            ) : gameMode === 'Neon Coin Rush' ? (
-              <>
-                <h3 className="font-bold uppercase tracking-wider text-xs text-stone-500 mb-3 flex items-center gap-1.5 border-b border-stone-150 pb-2">
-                  <Compass size={14} /> Energy Nodes
-                </h3>
-                <div className="text-center py-2">
-                  <span className="text-3xl font-black font-mono text-stone-900">
-                    {myPlayerRef.current.score}
-                  </span>
-                  <span className="text-xs text-stone-400 font-bold uppercase tracking-wider ml-1">PTS</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3 className="font-bold uppercase tracking-wider text-xs text-stone-500 mb-3 flex items-center gap-1.5 border-b border-stone-150 pb-2">
-                  <Compass size={14} /> telemetry
-                </h3>
-                <div className="text-center py-2">
-                  <span className="text-3xl font-black font-mono text-stone-800">
-                    {speedVal}
-                  </span>
-                  <span className="text-xs text-stone-400 font-bold uppercase tracking-wider ml-1">KPH</span>
-                </div>
-              </>
-            )}
+          {/* Telemetry Speeder */}
+          <div className="bg-white border border-stone-200 p-4 rounded-xl shadow-xs">
+            <h3 className="font-bold uppercase tracking-wider text-[10px] text-stone-500 mb-2.5 flex items-center gap-1.5 border-b border-stone-100 pb-1.5 font-mono">
+              <Zap size={11} className="text-amber-500" /> Speed & Position
+            </h3>
+            
+            <div className="flex items-center justify-between py-1">
+              <div className="text-center bg-stone-50 p-2 rounded-xl border border-stone-150 flex-1 mr-2">
+                <span className="text-2xl font-black font-mono text-stone-90; block">
+                  {speedVal}
+                </span>
+                <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider font-mono">MPH</span>
+              </div>
+              <div className="text-center bg-stone-50 p-2 rounded-xl border border-stone-150 flex-1">
+                <span className="text-2xl font-black font-mono text-stone-900 block">
+                  {progressPercent}%
+                </span>
+                <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider font-mono">Progress</span>
+              </div>
+            </div>
+
+            {/* Checkpoint Indicators tracker */}
+            <div className="mt-3 bg-stone-50 p-2 rounded-lg border border-stone-150">
+              <span className="text-[10px] font-bold text-stone-400 uppercase font-mono block mb-1">Latest Checkpoint:</span>
+              <span className="text-xs font-bold text-stone-700 font-mono">🚩 {myPlayerRef.current.latestCheckpointLabel}</span>
+            </div>
             
             {/* Completion metrics bar */}
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-xs text-stone-500 mb-1.5 font-light">
-                {gameMode === 'Space Dodge' ? (
-                  <>
-                    <span>Time Remaining:</span>
-                    <span className="font-bold font-mono text-stone-700">{secondsLeft}s</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Progress:</span>
-                    <span className="font-bold text-stone-700">{progressPercent}%</span>
-                  </>
-                )}
-              </div>
-              <div className="w-full h-2 bg-stone-100 rounded-full overflow-hidden border border-stone-200">
+            <div className="mt-3.5">
+              <div className="w-full h-2.5 bg-stone-100 rounded-full overflow-hidden border border-stone-200">
                 <div
                   className="h-full rounded-full transition-all bg-stone-900"
-                  style={{
-                    width: `${gameMode === 'Space Dodge' ? (secondsLeft / 30) * 100 : progressPercent}%`
-                  }}
+                  style={{ width: `${progressPercent}%` }}
                 />
               </div>
             </div>
           </div>
 
-          {/* Leaders Dashboard */}
-          <div className="bg-white border border-stone-200 p-5 rounded-2xl flex-1 flex flex-col shadow-xs">
-            <h3 className="font-bold uppercase tracking-wider text-xs text-stone-500 mb-4 flex items-center gap-1.5 border-b border-stone-150 pb-2">
-              <Trophy size={14} /> Real-time Leaders
+          {/* Local match statistics HUD */}
+          <div className="bg-white border border-stone-200 p-4 rounded-xl shadow-xs">
+            <h3 className="font-bold uppercase tracking-wider text-[10px] text-stone-500 mb-2.5 flex items-center gap-1.5 border-b border-stone-100 pb-1.5 font-mono">
+              <Swords size={11} className="text-stone-700" /> My Match Statistics
+            </h3>
+            
+            <div className="grid grid-cols-2 gap-2 text-center font-mono text-xs">
+              <div className="bg-stone-50/50 p-2 rounded-lg border border-stone-150">
+                <span className="text-[9px] text-stone-400 uppercase font-bold block">Punches 🥊</span>
+                <span className="text-base font-black text-stone-800">{localStats.punches}</span>
+              </div>
+              <div className="bg-stone-50/50 p-2 rounded-lg border border-stone-150">
+                <span className="text-[9px] text-stone-400 uppercase font-bold block">Falls 🕳️</span>
+                <span className="text-base font-black text-stone-800">{localStats.falls}</span>
+              </div>
+              <div className="bg-stone-50/50 p-2 rounded-lg border border-stone-150">
+                <span className="text-[9px] text-stone-400 uppercase font-bold block">Deaths ☠️</span>
+                <span className="text-base font-black text-stone-800">{localStats.deaths}</span>
+              </div>
+              <div className="bg-stone-50/50 p-2 rounded-lg border border-stone-150">
+                <span className="text-[9px] text-stone-400 uppercase font-bold block">Powerup 👑</span>
+                <span className="text-[9px] font-black text-stone-700 truncate block mt-1">{localStats.powerup}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Leaders Grand Board Dashboard */}
+          <div className="bg-white border border-stone-200 p-4 rounded-xl flex-1 flex flex-col shadow-xs">
+            <h3 className="font-bold uppercase tracking-wider text-[10px] text-stone-500 mb-3 flex items-center gap-1.5 border-b border-stone-100 pb-1.5 font-mono">
+              <Trophy size={11} className="text-amber-500" /> Live Standings
             </h3>
 
-            <div className="flex flex-col gap-3 flex-1 overflow-y-auto">
+            <div className="flex flex-col gap-2 flex-1 overflow-y-auto max-h-[220px] lg:max-h-none">
               {sortedLeadboard.map((entry, index) => (
                 <div
                   key={entry.name}
-                  className={`flex items-center justify-between p-3 rounded-xl border ${entry.isSelf ? 'bg-stone-50 border-stone-300 shadow-xs' : 'bg-white border-stone-150'}`}
+                  className={`flex flex-col p-2.5 rounded-lg border font-mono ${entry.isSelf ? 'bg-indigo-50/45 border-indigo-200 shadow-xs' : 'bg-stone-50/30 border-stone-150'}`}
                 >
-                  <div className="flex items-center gap-2 w-[70%]">
-                    <span className="font-bold text-xs text-stone-400 font-mono w-4">
-                      #{index + 1}
-                    </span>
-                    <div className="truncate">
-                      <p className={`text-xs font-bold truncate ${entry.isSelf ? 'text-stone-900' : 'text-stone-700'}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="font-black text-xs text-stone-400">
+                        #{index + 1}
+                      </span>
+                      <p className={`text-xs font-black truncate max-w-[110px] ${entry.isSelf ? 'text-indigo-900' : 'text-stone-700'}`}>
                         {entry.name}
                       </p>
-                      <p className="text-[10px] text-stone-400 font-light">
-                        {entry.finished ? 'Complete' : 'Racing'}
-                      </p>
                     </div>
+
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${entry.finished ? 'bg-green-100 text-green-800' : 'bg-stone-100 text-stone-500'}`}>
+                      {entry.finished ? 'FINISH' : `${entry.progress}%`}
+                    </span>
                   </div>
 
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${entry.finished ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-stone-50 text-stone-500'}`}>
-                    {entry.finished
-                      ? 'Finished'
-                      : gameMode === 'Space Dodge'
-                      ? `${entry.score} HP`
-                      : gameMode === 'Neon Coin Rush'
-                      ? `${entry.score} pts`
-                      : `${entry.progress}%`}
-                  </span>
+                  {/* Tiny statistics line */}
+                  <div className="flex items-center justify-between text-[9px] text-stone-400 mt-1.5 pt-1.5 border-t border-dashed border-stone-200">
+                    <span>🥊 {entry.punches}</span>
+                    <span>🕳️ {entry.falls}</span>
+                    <span>☠️ {entry.deaths}</span>
+                    <span>⚡ {entry.sabotages}</span>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* 2D CANVAS GAMEFIELD */}
-        <div className="lg:col-span-3 flex flex-col bg-white border border-stone-200 rounded-2xl overflow-hidden p-3 relative shadow-xs">
+        {/* 2D SIDECROLLING GRAPHICS FIELD */}
+        <div className="lg:col-span-3 flex flex-col bg-white border border-stone-200 rounded-xl overflow-hidden p-2 relative shadow-xs">
+          
+          {/* Virtual manual joystick controllers overlays for mouse inputs on tablet-size viewports */}
           <canvas
             ref={canvasRef}
-            className="w-full bg-stone-50 rounded-xl max-h-[70vh] border border-stone-200/80 aspect-[8/7]"
+            className="w-full bg-slate-900 rounded-lg max-h-[70vh] border border-stone-200 aspect-[80/56]"
           />
+
+          {/* Direct Key Controls Legend Card */}
+          <div className="grid grid-cols-4 md:grid-cols-5 gap-2.5 p-2 bg-stone-50 rounded-lg border border-stone-200 mt-2 font-mono text-[9px]">
+            <div className="flex flex-col px-1">
+              <span className="text-stone-400 font-bold uppercase">Run Controls</span>
+              <span className="text-stone-800 font-black">A, D / ArrowLeft, Right</span>
+            </div>
+            <div className="flex flex-col px-1">
+              <span className="text-stone-400 font-bold uppercase">Jump / Double</span>
+              <span className="text-stone-800 font-black">Space, W / ArrowUp</span>
+            </div>
+            <div className="flex flex-col px-1">
+              <span className="text-stone-400 font-bold uppercase">Slide (Tight Vaults)</span>
+              <span className="text-stone-800 font-black">S / ArrowDown</span>
+            </div>
+            <div className="flex flex-col px-1">
+              <span className="text-stone-400 font-bold uppercase">Dash Fwd</span>
+              <span className="text-stone-800 font-black">Shift / E Key</span>
+            </div>
+            <div className="hidden md:flex flex-col px-1">
+              <span className="text-stone-400 font-bold uppercase">Sabotage Intersect</span>
+              <span className="text-stone-800 font-black">F (Punch!)</span>
+            </div>
+          </div>
         </div>
 
       </div>

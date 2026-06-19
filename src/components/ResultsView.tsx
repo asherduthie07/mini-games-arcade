@@ -44,8 +44,8 @@ export default function ResultsView({ code }: ResultsViewProps) {
     if (a.finished && !b.finished) return -1;
     if (!a.finished && b.finished) return 1;
     
-    // If finished / completed, or sort by progress/positions
-    return b.y_position - a.y_position; 
+    // If finished / completed, or sort by horizontal progress
+    return b.x_position - a.x_position; 
   });
 
   const goldWinner = sortedStandings[0];
