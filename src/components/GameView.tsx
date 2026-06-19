@@ -78,12 +78,12 @@ export default function GameView({ code }: GameViewProps) {
   const gameMode = room?.current_game || 'Obstacle Dash';
 
   // --- DESIGN STRATEGY: SIMPLER, PREDICTABLE MAP CONFIGURATION ---
-  // Easy checkpoints to avoid frustrating restarts from scratch
+  // Easy checkpoints to avoid frustrating restarts from scratch (incorporating explicit platform surfaces)
   const checkpoints = [
-    { x: 100, label: 'Start Line' },
-    { x: 900, label: 'Waystation Alpha' },
-    { x: 1800, label: 'Waystation Beta' },
-    { x: 2600, label: 'Final Stretch' }
+    { x: 100, y: GROUND_LEVEL, label: 'Start Line' },
+    { x: 925, y: GROUND_LEVEL - 50, label: 'Waystation Alpha' },
+    { x: 1750, y: GROUND_LEVEL, label: 'Waystation Beta' },
+    { x: 2520, y: GROUND_LEVEL - 40, label: 'Final Stretch' }
   ];
 
   // Easy static platforms designed with adequate spacing for solid, predictable platforming
@@ -102,10 +102,10 @@ export default function GameView({ code }: GameViewProps) {
     { x: 2700, y: GROUND_LEVEL, w: 400, h: 60, style: 'stone' }
   ]);
 
-  // Gentle moving platforms that slide predictably side-to-side
+  // Gentle moving platforms that slide predictably side-to-side (corrected speed variables for pure buttery smoothness!)
   const movingPlatforms = useRef<MovingPlatform[]>([
-    { id: 1, x: 700, y: GROUND_LEVEL - 40, w: 100, h: 15, startX: 700, rangeX: 100, speed: 0.02 },
-    { id: 2, x: 1450, y: GROUND_LEVEL - 80, w: 100, h: 15, startX: 1450, rangeX: 110, speed: 0.015 }
+    { id: 1, x: 700, y: GROUND_LEVEL - 40, w: 100, h: 15, startX: 700, rangeX: 100, speed: 0.0016 },
+    { id: 2, x: 1450, y: GROUND_LEVEL - 80, w: 100, h: 15, startX: 1450, rangeX: 110, speed: 0.0012 }
   ]);
 
   // Hazards which are highly visible and static to minimize visual clutter
@@ -150,6 +150,7 @@ export default function GameView({ code }: GameViewProps) {
 
     // Statistics Tracker
     latestCheckpointX: 100,
+    latestCheckpointY: GROUND_LEVEL,
     latestCheckpointLabel: 'Start Line',
     finished: false,
     finishTime: 0,
@@ -312,11 +313,11 @@ export default function GameView({ code }: GameViewProps) {
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) lateralInput = -1;
       if (keys['ArrowRight'] || keys['d'] || keys['D']) lateralInput = 1;
 
-      // Simple physics constants
-      const acceleration = 0.55;
-      const baseFriction = 0.16;
-      const gravity = 0.5;
-      const maxNormalSpeed = my.boostTimer > 0 ? 9.0 : 5.8;
+      // Simple physics constants (perfectly balanced, responsive and super stable)
+      const acceleration = 0.45;
+      const baseFriction = 0.12;
+      const gravity = 0.42;
+      const maxNormalSpeed = my.boostTimer > 0 ? 7.6 : 5.0;
 
       if (lateralInput !== 0) {
         my.vx += lateralInput * acceleration;
@@ -333,7 +334,7 @@ export default function GameView({ code }: GameViewProps) {
       if (jumpPressed) {
         if (my.isGrounded) {
           // Normal jump or high double jump
-          const jumpPower = my.superJumpTimer > 0 ? -12.5 : -10.5;
+          const jumpPower = my.superJumpTimer > 0 ? -11.0 : -9.0;
           my.vy = jumpPower;
           my.isGrounded = false;
           my.doubleJumpsUsed = 0;
@@ -344,7 +345,7 @@ export default function GameView({ code }: GameViewProps) {
           keysPressed.current['w'] = false;
         } else if (my.doubleJumpsUsed < 1) {
           // Double jump
-          my.vy = -9.0;
+          my.vy = -7.8;
           my.doubleJumpsUsed++;
           playBeep(580, 0.08, 'sine');
 
@@ -433,6 +434,7 @@ export default function GameView({ code }: GameViewProps) {
       checkpoints.forEach((checkpoint) => {
         if (my.x >= checkpoint.x && checkpoint.x > my.latestCheckpointX) {
           my.latestCheckpointX = checkpoint.x;
+          my.latestCheckpointY = checkpoint.y;
           my.latestCheckpointLabel = checkpoint.label;
           playBeep(650, 0.15, 'sine');
           sendGameEvent('chat_log_broadcast', { text: `${username} reached checkpoint: ${checkpoint.label}!` });
@@ -446,29 +448,39 @@ export default function GameView({ code }: GameViewProps) {
         respawnAtCheckpoint();
       }
 
-      // Check Hazards collisions
+      // Check Hazards collisions (using mathematically accurate aligned pixel-perfect boundaries)
       hazards.current.forEach((haz) => {
         const playerWidth = 24;
         const playerHeight = 36;
         
-        // simple box intersection
-        if (
-          my.x + playerWidth / 2 > haz.x - haz.w / 2 &&
-          my.x - playerWidth / 2 < haz.x + haz.w / 2 &&
-          my.y + playerHeight > haz.y - haz.h / 2 &&
-          my.y < haz.y + haz.h / 2
-        ) {
-          my.deaths++;
-          playCrashSound();
-          respawnAtCheckpoint();
+        if (haz.type === 'spike') {
+          // Precise rectangular bounding box aligned with triangles drawn upwards from haz.y base
+          if (
+            my.x + playerWidth / 2 > haz.x - haz.w / 2 &&
+            my.x - playerWidth / 2 < haz.x + haz.w / 2 &&
+            my.y + playerHeight > haz.y - haz.h &&
+            my.y < haz.y
+          ) {
+            my.deaths++;
+            playCrashSound();
+            respawnAtCheckpoint();
+          }
+        } else if (haz.type === 'slow_orb') {
+          // Precise radial circle check targeting the actual center of our local bubble character
+          const dist = Math.hypot(my.x - haz.x, (my.y + 18) - haz.y);
+          if (dist < (haz.w / 2) + 10) {
+            my.deaths++;
+            playCrashSound();
+            respawnAtCheckpoint();
+          }
         }
       });
 
-      // Check collectible Boost pads
+      // Check collectible Boost pads (calculated against the center of the player's body for high reliability of collection)
       boostPads.current.forEach((pad) => {
         if (collectedBoostIds.has(pad.id)) return;
 
-        const distance = Math.hypot(my.x - pad.x, my.y - pad.y);
+        const distance = Math.hypot(my.x - pad.x, (my.y + 18) - pad.y);
         if (distance < 24) {
           playBoostSound();
           setCollectedBoostIds(prev => {
@@ -563,7 +575,7 @@ export default function GameView({ code }: GameViewProps) {
     const respawnAtCheckpoint = () => {
       const my = myPlayerRef.current;
       my.x = my.latestCheckpointX;
-      my.y = GROUND_LEVEL - 50;
+      my.y = my.latestCheckpointY - 50; // Use checkpoint's Y coordinate to drop safely onto platforms
       my.vx = 0;
       my.vy = 0;
       my.boostTimer = 0;
@@ -693,27 +705,28 @@ export default function GameView({ code }: GameViewProps) {
         }
       });
 
-      // 6. Draw Checkpoints Flags
+      // 6. Draw Checkpoints Flags (drawn perfectly standing tall on top of their respective platforms)
       checkpoints.forEach((checkpoint) => {
         const px = checkpoint.x - camX;
         if (px < -60 || px > CANVAS_WIDTH + 60) return;
 
         const active = my.latestCheckpointX >= checkpoint.x;
+        const cy = checkpoint.y;
 
         // Pole
         ctx.strokeStyle = '#94a3b8';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(px, GROUND_LEVEL);
-        ctx.lineTo(px, GROUND_LEVEL - 50);
+        ctx.moveTo(px, cy);
+        ctx.lineTo(px, cy - 50);
         ctx.stroke();
 
         // Flag
         ctx.fillStyle = active ? '#10b981' : '#dc2626';
         ctx.beginPath();
-        ctx.moveTo(px, GROUND_LEVEL - 50);
-        ctx.lineTo(px + 18, GROUND_LEVEL - 42);
-        ctx.lineTo(px, GROUND_LEVEL - 34);
+        ctx.moveTo(px, cy - 50);
+        ctx.lineTo(px + 18, cy - 42);
+        ctx.lineTo(px, cy - 34);
         ctx.closePath();
         ctx.fill();
 
@@ -721,7 +734,7 @@ export default function GameView({ code }: GameViewProps) {
         ctx.fillStyle = '#e2e8f0';
         ctx.font = 'semibold 8px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(checkpoint.label, px, GROUND_LEVEL - 56);
+        ctx.fillText(checkpoint.label, px, cy - 56);
       });
 
       // 7. Render Finish goal gateway banner
