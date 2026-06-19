@@ -29,6 +29,13 @@ const ARCADE_GAMES = [
     description: 'Collect maximum glowing nodes. Grid winner is decided by coin scores.',
     color: 'from-green-500 to-teal-500',
     icon: '💎'
+  },
+  {
+    id: 'Parkour Extreme',
+    name: 'Parkour Extreme',
+    description: 'Jump over deep pits and hurdles using Spacebar! Precise timing is key.',
+    color: 'from-pink-500 to-rose-500',
+    icon: '🏃'
   }
 ];
 
@@ -54,7 +61,8 @@ export default function LobbyView({ code }: LobbyViewProps) {
     sendChatMessage,
     kickPlayer,
     submitGameVote,
-    hostSelectGame
+    hostSelectGame,
+    hostClearOverride
   } = useGameStore();
 
   // Handle automatic joining if room is refreshed or deep linked directly
@@ -250,101 +258,139 @@ export default function LobbyView({ code }: LobbyViewProps) {
                   Select Game Mode Arena
                 </h3>
                 <p className="text-xs text-stone-500 font-light mt-0.5">
-                  Play the most-voted game or let the host directly choose.
+                  Play the most-voted game or let the host directly override.
                 </p>
               </div>
-              <span className="self-start sm:self-center text-xs font-semibold px-2.5 py-1 bg-stone-50 text-stone-600 rounded-lg border border-stone-200 font-mono">
-                Votes Cast: {Object.keys(room?.game_state?.votes || {}).length} / {players.length}
-              </span>
+              <div className="flex items-center gap-2">
+                {isHost && room?.game_state?.hostOverride && (
+                  <button
+                    onClick={() => {
+                      playBeep(600, 0.08, 'sine');
+                      hostClearOverride();
+                    }}
+                    className="text-xs bg-amber-50 hover:bg-amber-120 text-amber-700 font-bold border border-amber-250 px-3 py-1 rounded-xl transition-all shadow-xs"
+                    title="Unlock to use the player votes"
+                  >
+                    🗳️ Follow Voting Majority
+                  </button>
+                )}
+                <span className="self-start sm:self-center text-xs font-semibold px-2.5 py-1 bg-stone-50 text-stone-600 rounded-lg border border-stone-200 font-mono">
+                  Votes: {Object.keys(room?.game_state?.votes || {}).length} / {players.length}
+                </span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {ARCADE_GAMES.map((game) => {
-                const isSelected = room?.current_game === game.id;
-                const votes = players.filter(p => room?.game_state?.votes?.[p.id] === game.id);
-                const hasMyVote = room?.game_state?.votes?.[currentUserId || ''] === game.id;
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {(() => {
+                // Calculate majority vote winner in real time
+                const voteCounts: Record<string, number> = {};
+                players.forEach((p) => {
+                  const v = room?.game_state?.votes?.[p.id];
+                  if (v) voteCounts[v] = (voteCounts[v] || 0) + 1;
+                });
 
-                return (
-                  <div
-                    key={game.id}
-                    className={`relative rounded-xl p-4 border transition-all flex flex-col justify-between ${
-                      isSelected
-                        ? 'bg-stone-50 border-stone-400 shadow-xs'
-                        : 'bg-white border-stone-200/85 hover:border-stone-300'
-                    }`}
-                  >
-                    {isSelected && (
-                      <span className="absolute -top-2.5 left-4 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-stone-900 text-stone-100 rounded-md border border-stone-800/85">
-                        Selected Game
-                      </span>
-                    )}
+                let majorityGameId = '';
+                let maxVotesCount = 0;
+                for (const [gName, count] of Object.entries(voteCounts)) {
+                  if (count > maxVotesCount) {
+                    maxVotesCount = count;
+                    majorityGameId = gName;
+                  } else if (count === maxVotesCount && gName === room?.game_state?.votes?.[room.host_id || '']) {
+                    // Host breaks ties
+                    majorityGameId = gName;
+                  }
+                }
 
-                    <div className="mb-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xl">{game.icon}</span>
-                        <h4 className="font-bold text-sm text-stone-800">{game.name}</h4>
-                      </div>
-                      <p className="text-xs text-stone-500 leading-relaxed font-light">
-                        {game.description}
-                      </p>
-                    </div>
+                const isHostOverridden = room?.game_state?.hostOverride === true;
 
-                    <div className="space-y-3">
-                      {/* Voters avatars or names display */}
-                      {votes.length > 0 ? (
-                        <div className="flex flex-wrap gap-1 pt-2 border-t border-stone-150">
-                          {votes.map(v => (
-                            <span
-                              key={v.id}
-                              className="text-[9px] bg-stone-100 border border-stone-200 text-stone-600 px-2 py-0.5 rounded font-mono truncate max-w-full"
-                              title={`${v.username} voted for this`}
-                            >
-                              🗳️ {v.username}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="pt-2 border-t border-stone-150 text-[9px] text-stone-400 font-mono">
-                          No current votes
-                        </div>
+                return ARCADE_GAMES.map((game) => {
+                  const isSelected = room?.current_game === game.id;
+                  const isPopularMajority = game.id === majorityGameId && maxVotesCount > 0;
+                  const votes = players.filter(p => room?.game_state?.votes?.[p.id] === game.id);
+                  const hasMyVote = room?.game_state?.votes?.[currentUserId || ''] === game.id;
+
+                  return (
+                    <div
+                      key={game.id}
+                      className={`relative rounded-xl p-4 border transition-all flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-stone-50/70 border-stone-400 shadow-sm'
+                          : 'bg-white border-stone-200/85 hover:border-stone-300'
+                      }`}
+                    >
+                      {isSelected && (
+                        <span className="absolute -top-2.5 left-3 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-stone-900 text-stone-50 rounded-md border border-stone-800 shadow-xs">
+                          {isHostOverridden && room?.game_state?.hostSelectedGame === game.id ? '👑 Host Select' : '🗳️ Vote Choice'}
+                        </span>
                       )}
 
-                      <div className="flex flex-col gap-1.5">
-                        <button
-                          onClick={() => {
-                            playBeep(600, 0.08, 'sine');
-                            submitGameVote(game.id);
-                          }}
-                          className={`w-full py-2 text-xs font-bold rounded-lg border transition-all ${
-                            hasMyVote
-                              ? 'bg-emerald-600 text-white border-transparent'
-                              : 'bg-stone-900 hover:bg-stone-800 text-white border-transparent'
-                          }`}
-                        >
-                          {hasMyVote ? '✓ Voted' : 'Vote'}
-                        </button>
+                      <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xl">{game.icon}</span>
+                          <h4 className="font-bold text-sm text-stone-800">{game.name}</h4>
+                        </div>
+                        <p className="text-xs text-stone-500 leading-relaxed font-light">
+                          {game.description}
+                        </p>
+                      </div>
 
-                        {isHost && (
+                      <div className="space-y-3">
+                        {/* Vote tags */}
+                        {votes.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 pt-2 border-t border-stone-150">
+                            {votes.map(v => (
+                              <span
+                                key={v.id}
+                                className="text-[9px] bg-stone-100 border border-stone-200/70 text-stone-600 px-1.5 py-0.5 rounded font-mono truncate max-w-full"
+                                title={`${v.username} voted for this`}
+                              >
+                                🗳️ {v.username}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="pt-2 border-t border-stone-150 text-[9px] text-stone-400 font-mono">
+                            No current votes
+                          </div>
+                        )}
+
+                        <div className="flex flex-col gap-1">
                           <button
                             onClick={() => {
-                              playBeep(850, 0.08, 'sawtooth');
-                              hostSelectGame(game.id);
+                              playBeep(600, 0.08, 'sine');
+                              submitGameVote(game.id);
                             }}
-                            className={`w-full py-1.5 text-[9px] uppercase tracking-wide font-bold rounded-md border transition-all ${
-                              isSelected
-                                ? 'bg-stone-100 text-stone-400 border-stone-200 cursor-default'
-                                : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-900 hover:text-white hover:border-transparent'
+                            className={`w-full py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                              hasMyVote
+                                ? 'bg-emerald-600 text-white border-transparent'
+                                : 'bg-stone-900 hover:bg-stone-800 text-white border-transparent cursor-pointer'
                             }`}
-                            disabled={isSelected}
                           >
-                            {isSelected ? 'Direct Active Selection' : 'Host Direct Override'}
+                            {hasMyVote ? '✓ Voted' : 'Vote'}
                           </button>
-                        )}
+
+                          {isHost && (
+                            <button
+                              onClick={() => {
+                                playBeep(850, 0.08, 'sawtooth');
+                                hostSelectGame(game.id);
+                              }}
+                              className={`w-full py-1 text-[9px] uppercase tracking-wide font-bold rounded-md border transition-all ${
+                                isHostOverridden && room?.game_state?.hostSelectedGame === game.id
+                                  ? 'bg-stone-100 text-stone-400 border-stone-200 cursor-default'
+                                  : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-900 hover:text-white hover:border-transparent cursor-pointer'
+                              }`}
+                              disabled={isHostOverridden && room?.game_state?.hostSelectedGame === game.id}
+                            >
+                              {isHostOverridden && room?.game_state?.hostSelectedGame === game.id ? '👑 Override Active' : 'Host Override'}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           </div>
 
@@ -363,7 +409,7 @@ export default function LobbyView({ code }: LobbyViewProps) {
               {/* Ready btn */}
               <button
                 onClick={toggleReady}
-                className="flex-1 sm:flex-initial px-6 py-3 bg-white hover:bg-stone-50 text-stone-700 font-semibold rounded-xl border border-stone-250 hover:border-stone-350 transition-colors inline-flex items-center justify-center gap-2 text-sm shadow-xs"
+                className="flex-1 sm:flex-initial px-6 py-3 bg-white hover:bg-stone-50 text-stone-700 font-semibold rounded-xl border border-stone-250 hover:border-stone-350 transition-colors inline-flex items-center justify-center gap-2 text-sm shadow-xs cursor-pointer"
               >
                 <Power size={14} className="text-stone-500" />
                 Change Ready
@@ -373,10 +419,10 @@ export default function LobbyView({ code }: LobbyViewProps) {
               {isHost && (
                 <button
                   onClick={handleStartGame}
-                  className="flex-1 sm:flex-initial px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl shadow-xs transition-all inline-flex items-center justify-center gap-2 text-sm uppercase tracking-wider"
+                  className="flex-1 sm:flex-initial px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl shadow-xs transition-colors inline-flex items-center justify-center gap-2 text-sm uppercase tracking-wider cursor-pointer"
                 >
                   <Play size={14} fill="currentColor" />
-                  Ignite Dash
+                  Ignite Dash: {room?.current_game || 'Obstacle Dash'}
                 </button>
               )}
             </div>

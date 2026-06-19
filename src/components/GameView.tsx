@@ -17,36 +17,79 @@ interface Obstacle {
   speed: number;
   w: number;
   h: number;
-  style: string; // 'neon-red' | 'cyber-barrier' | 'debris'
+  style: string; // 'neon-red' | 'cyber-barrier' | 'debris' | 'asteroid' | 'floor-gap' | 'high-wall' | 'low-hurdle' | 'energy-gate'
 }
 
-const DETERMINISTIC_OBSTACLES: Obstacle[] = [
-  // Starting obstacles (simple, static or slowly moving)
+// 1. Obstacle Dash Obstacles
+const OBSTACLES_OBSTACLE_DASH: Obstacle[] = [
   { id: 1, y: 2400, xBase: 350, amp: 100, speed: 0.002, w: 90, h: 24, style: 'cyber-barrier' },
   { id: 2, y: 2200, xBase: 450, amp: 120, speed: 0.003, w: 80, h: 20, style: 'neon-red' },
   { id: 3, y: 2000, xBase: 250, amp: 80, speed: 0.0025, w: 100, h: 24, style: 'debris' },
-
-  // Mid-track (faster, wider obstacles)
   { id: 4, y: 1800, xBase: 400, amp: 160, speed: 0.004, w: 120, h: 24, style: 'neon-red' },
   { id: 5, y: 1600, xBase: 300, amp: 140, speed: 0.005, w: 80, h: 28, style: 'cyber-barrier' },
   { id: 6, y: 1400, xBase: 500, amp: 180, speed: 0.0035, w: 110, h: 20, style: 'debris' },
-
-  // Near finish (insane slalom layout)
   { id: 7, y: 1100, xBase: 400, amp: 200, speed: 0.006, w: 140, h: 24, style: 'neon-red' },
   { id: 8, y: 900, xBase: 300, amp: 180, speed: 0.0055, w: 100, h: 24, style: 'cyber-barrier' },
   { id: 9, y: 700, xBase: 450, amp: 220, speed: 0.007, w: 130, h: 24, style: 'neon-red' },
   { id: 10, y: 450, xBase: 350, amp: 120, speed: 0.008, w: 150, h: 30, style: 'cyber-barrier' },
 ];
 
+// 2. Space Dodge Obstacles (Asteroids)
+const OBSTACLES_SPACE_DODGE: Obstacle[] = [
+  { id: 201, y: 2500, xBase: 200, amp: 110, speed: 0.002, w: 45, h: 45, style: 'asteroid' },
+  { id: 202, y: 2300, xBase: 500, amp: 130, speed: 0.003, w: 50, h: 50, style: 'asteroid' },
+  { id: 203, y: 2100, xBase: 350, amp: 120, speed: 0.0015, w: 60, h: 60, style: 'asteroid' },
+  { id: 204, y: 1900, xBase: 600, amp: 90, speed: 0.004, w: 40, h: 40, style: 'asteroid' },
+  { id: 205, y: 1700, xBase: 150, amp: 150, speed: 0.0025, w: 55, h: 55, style: 'asteroid' },
+  { id: 206, y: 1500, xBase: 400, amp: 100, speed: 0.0035, w: 52, h: 52, style: 'asteroid' },
+  { id: 207, y: 1300, xBase: 250, amp: 140, speed: 0.005, w: 42, h: 42, style: 'asteroid' },
+  { id: 208, y: 1100, xBase: 550, amp: 90, speed: 0.002, w: 65, h: 65, style: 'asteroid' },
+  { id: 209, y: 900, xBase: 300, amp: 170, speed: 0.004, w: 45, h: 45, style: 'asteroid' },
+  { id: 210, y: 700, xBase: 450, amp: 120, speed: 0.003, w: 48, h: 48, style: 'asteroid' },
+  { id: 211, y: 500, xBase: 350, amp: 160, speed: 0.006, w: 55, h: 55, style: 'asteroid' },
+];
+
+// 3. Neon Coin Rush Obstacles
+const OBSTACLES_NEON_COIN_RUSH: Obstacle[] = [
+  { id: 301, y: 2400, xBase: 300, amp: 70, speed: 0.001, w: 80, h: 20, style: 'energy-gate' },
+  { id: 302, y: 2100, xBase: 500, amp: 90, speed: 0.002, w: 90, h: 20, style: 'energy-gate' },
+  { id: 303, y: 1800, xBase: 250, amp: 85, speed: 0.0015, w: 80, h: 20, style: 'energy-gate' },
+  { id: 304, y: 1500, xBase: 450, amp: 110, speed: 0.002, w: 100, h: 20, style: 'energy-gate' },
+  { id: 305, y: 1200, xBase: 350, amp: 95, speed: 0.0025, w: 85, h: 20, style: 'energy-gate' },
+  { id: 306, y: 900, xBase: 550, amp: 120, speed: 0.0018, w: 90, h: 20, style: 'energy-gate' },
+  { id: 307, y: 600, xBase: 300, amp: 130, speed: 0.003, w: 120, h: 20, style: 'energy-gate' },
+];
+
+// 4. Parkour Extreme Obstacles (Gaps and Walls)
+const OBSTACLES_PARKOUR: Obstacle[] = [
+  { id: 401, y: 2500, xBase: 400, amp: 0, speed: 0, w: 200, h: 70, style: 'floor-gap' },
+  { id: 402, y: 2300, xBase: 255, amp: 0, speed: 0, w: 110, h: 24, style: 'low-hurdle' },
+  { id: 403, y: 2100, xBase: 545, amp: 0, speed: 0, w: 110, h: 24, style: 'high-wall' },
+  { id: 404, y: 1900, xBase: 305, amp: 0, speed: 0, w: 240, h: 80, style: 'floor-gap' },
+  { id: 405, y: 1700, xBase: 450, amp: 115, speed: 0.002, w: 100, h: 20, style: 'low-hurdle' },
+  { id: 406, y: 1500, xBase: 355, amp: 0, speed: 0, w: 180, h: 24, style: 'high-wall' },
+  { id: 407, y: 1300, xBase: 400, amp: 0, speed: 0, w: 260, h: 90, style: 'floor-gap' },
+  { id: 408, y: 1105, xBase: 250, amp: 0, speed: 0, w: 120, h: 20, style: 'low-hurdle' },
+  { id: 409, y: 905, xBase: 505, amp: 95, speed: 0.003, w: 100, h: 20, style: 'low-hurdle' },
+  { id: 410, y: 650, xBase: 400, amp: 0, speed: 0, w: 300, h: 110, style: 'floor-gap' },
+];
+
+const getActiveObstacles = (gameMode: string): Obstacle[] => {
+  if (gameMode === 'Space Dodge') return OBSTACLES_SPACE_DODGE;
+  if (gameMode === 'Neon Coin Rush') return OBSTACLES_NEON_COIN_RUSH;
+  if (gameMode === 'Parkour Extreme') return OBSTACLES_PARKOUR;
+  return OBSTACLES_OBSTACLE_DASH;
+};
+
 // Predefined deterministic powerups [ {id, x, y, collected} ]
 interface PowerBoost {
   id: number;
   x: number;
   y: number;
-  type: 'speed' | 'shield';
+  type: 'speed' | 'shield' | 'coin' | 'parkour-boost';
 }
 
-const DETERMINISTIC_BOOSTS: PowerBoost[] = [
+const CONSTS_BOOSTS_DASH: PowerBoost[] = [
   { id: 101, x: 250, y: 2500, type: 'speed' },
   { id: 102, x: 550, y: 2100, type: 'speed' },
   { id: 103, x: 300, y: 1700, type: 'speed' },
@@ -54,6 +97,53 @@ const DETERMINISTIC_BOOSTS: PowerBoost[] = [
   { id: 105, x: 350, y: 800, type: 'speed' },
   { id: 106, x: 500, y: 500, type: 'speed' },
 ];
+
+const CONSTS_BOOSTS_SPACE: PowerBoost[] = [
+  { id: 501, x: 200, y: 2400, type: 'shield' },
+  { id: 502, x: 600, y: 2100, type: 'shield' },
+  { id: 503, x: 400, y: 1800, type: 'shield' },
+  { id: 504, x: 300, y: 1300, type: 'shield' },
+  { id: 505, x: 500, y: 900, type: 'shield' },
+  { id: 506, x: 250, y: 600, type: 'shield' },
+];
+
+const CONSTS_BOOSTS_COINS: PowerBoost[] = [
+  { id: 601, x: 250, y: 2605, type: 'coin' },
+  { id: 602, x: 250, y: 2555, type: 'coin' },
+  { id: 603, x: 250, y: 2505, type: 'coin' },
+  { id: 604, x: 550, y: 2305, type: 'coin' },
+  { id: 605, x: 550, y: 2255, type: 'coin' },
+  { id: 606, x: 550, y: 2205, type: 'coin' },
+  { id: 607, x: 400, y: 2005, type: 'coin' },
+  { id: 608, x: 400, y: 1955, type: 'coin' },
+  { id: 609, x: 400, y: 1905, type: 'coin' },
+  { id: 610, x: 300, y: 1605, type: 'coin' },
+  { id: 611, x: 320, y: 1555, type: 'coin' },
+  { id: 612, x: 340, y: 1505, type: 'coin' },
+  { id: 613, x: 500, y: 1305, type: 'coin' },
+  { id: 614, x: 480, y: 1255, type: 'coin' },
+  { id: 615, x: 460, y: 1205, type: 'coin' },
+  { id: 616, x: 350, y: 905, type: 'coin' },
+  { id: 617, x: 350, y: 855, type: 'coin' },
+  { id: 618, x: 350, y: 805, type: 'coin' },
+  { id: 619, x: 450, y: 605, type: 'coin' },
+  { id: 620, x: 450, y: 555, type: 'coin' },
+  { id: 621, x: 450, y: 505, type: 'coin' },
+];
+
+const CONSTS_BOOSTS_PARKOUR: PowerBoost[] = [
+  { id: 701, x: 400, y: 2600, type: 'parkour-boost' },
+  { id: 702, x: 300, y: 2000, type: 'parkour-boost' },
+  { id: 703, x: 500, y: 1450, type: 'parkour-boost' },
+  { id: 704, x: 400, y: 800, type: 'parkour-boost' },
+];
+
+const getActiveBoosts = (gameMode: string): PowerBoost[] => {
+  if (gameMode === 'Space Dodge') return CONSTS_BOOSTS_SPACE;
+  if (gameMode === 'Neon Coin Rush') return CONSTS_BOOSTS_COINS;
+  if (gameMode === 'Parkour Extreme') return CONSTS_BOOSTS_PARKOUR;
+  return CONSTS_BOOSTS_DASH;
+};
 
 export default function GameView({ code }: GameViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -80,6 +170,8 @@ export default function GameView({ code }: GameViewProps) {
     crashTimer: number;
     finished: boolean;
     score: number;
+    z: number;
+    jumpTimer: number;
   }>({
     x: 400,
     y: 2850,
@@ -89,7 +181,9 @@ export default function GameView({ code }: GameViewProps) {
     boostTimer: 0,
     crashTimer: 0,
     finished: false,
-    score: 0
+    score: 0,
+    z: 0,
+    jumpTimer: 0
   });
 
   // Track player inputs
@@ -104,6 +198,7 @@ export default function GameView({ code }: GameViewProps) {
       vy: number;
       finished: boolean;
       score: number;
+      z: number;
     };
   }>({});
 
@@ -163,7 +258,7 @@ export default function GameView({ code }: GameViewProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
-      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 's', 'a', 'd'].includes(k)) {
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 's', 'a', 'd', ' '].includes(k)) {
         e.preventDefault();
       }
       keysPressed.current[e.key] = true;
@@ -187,7 +282,7 @@ export default function GameView({ code }: GameViewProps) {
       const my = myPlayerRef.current;
       if (my.finished) return; // Wait to submit final finish results
 
-      updatePlayerPosition(my.x, my.y, my.vx, my.vy, my.finished, my.score);
+      updatePlayerPosition(my.x, my.y, my.vx, my.vy, my.finished, my.score, my.z);
     }, 100);
 
     return () => clearInterval(syncInterval);
@@ -207,10 +302,39 @@ export default function GameView({ code }: GameViewProps) {
     const updatePhysics = () => {
       const my = myPlayerRef.current;
       const keys = keysPressed.current;
+      const gameMode = room?.current_game || 'Obstacle Dash';
 
       // Handle timers
       if (my.boostTimer > 0) my.boostTimer--;
       if (my.crashTimer > 0) my.crashTimer--;
+
+      // Handle Jump states (Support space key for jump in all modes, essential in Parkour Extreme)
+      const isSpacePressed = keys[' '] || keys['Spacebar'] || keys['space'];
+      if (isSpacePressed && my.z === 0 && my.crashTimer <= 0) {
+        my.jumpTimer = 32; // Jump duration in frames
+        // Quick high-pitched jump sound
+        try {
+          const sCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const osc = sCtx.createOscillator();
+          const gainNode = sCtx.createGain();
+          osc.connect(gainNode);
+          gainNode.connect(sCtx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(400, sCtx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(750, sCtx.currentTime + 0.15);
+          gainNode.gain.setValueAtTime(0.08, sCtx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, sCtx.currentTime + 0.15);
+          osc.start();
+          osc.stop(sCtx.currentTime + 0.15);
+        } catch (e) {}
+      }
+
+      if (my.jumpTimer > 0) {
+        my.jumpTimer--;
+        my.z = Math.sin((my.jumpTimer / 32) * Math.PI) * 45; // Altitude parabolic curve peaks at 45 px
+      } else {
+        my.z = 0;
+      }
 
       // If finished, decay speed
       if (my.finished) {
@@ -262,7 +386,6 @@ export default function GameView({ code }: GameViewProps) {
         my.boostTimer = 0; // Cancel current gains
         my.vy = -1.5; // Drag down speed instantly
         
-        const gameMode = room?.current_game || 'Obstacle Dash';
         if (gameMode === 'Space Dodge') {
           my.score = Math.max(0, my.score - 150);
         }
@@ -276,11 +399,12 @@ export default function GameView({ code }: GameViewProps) {
       if (collectedBoost !== null) {
         my.boostTimer = 150; // Active speed pad frame loop (2.5 seconds)
         
-        const gameMode = room?.current_game || 'Obstacle Dash';
         if (gameMode === 'Space Dodge') {
           my.score = Math.min(1000, my.score + 100);
         } else if (gameMode === 'Neon Coin Rush') {
           my.score += 10;
+        } else if (gameMode === 'Parkour Extreme') {
+          my.score += 15; // points for parkour acrobatics or collecting stars
         }
 
         playBoostSound();
@@ -292,7 +416,7 @@ export default function GameView({ code }: GameViewProps) {
       }
 
       // 5. Evaluate Finish Gate vs Looping
-      const isSpaceDodge = (room?.current_game || 'Obstacle Dash') === 'Space Dodge';
+      const isSpaceDodge = gameMode === 'Space Dodge';
       if (isSpaceDodge) {
         if (my.y <= 245) {
           // Reset y and let boosts reborn on the looping canvas
@@ -304,7 +428,7 @@ export default function GameView({ code }: GameViewProps) {
           my.finished = true;
           playVictorySound();
           // Submit final authoritative data with score
-          updatePlayerPosition(my.x, my.y, 0, 0, true, my.score);
+          updatePlayerPosition(my.x, my.y, 0, 0, true, my.score, my.z);
           
           // Notify lobby victory
           sendGameEvent('race_complete', {
@@ -325,15 +449,18 @@ export default function GameView({ code }: GameViewProps) {
       setSpeedVal(Math.round(Math.abs(my.vy) * 15));
     };
 
-    // Local Helper to determine rect overlaps
+    // Local Helper to determine rect overlaps with altitude (z) jump height considerations
     const checkCollisions = (cx: number, cy: number): boolean => {
       const nowTime = Date.now();
-      const carW = 30;
+      const carW = 32;
       const carH = 50;
+      const my = myPlayerRef.current;
+      const gameMode = room?.current_game || 'Obstacle Dash';
+      const obstacles = getActiveObstacles(gameMode);
 
-      for (const obs of DETERMINISTIC_OBSTACLES) {
+      for (const obs of obstacles) {
         // Moving displacement matching drawing loop
-        const dx = Math.sin(nowTime * obs.speed + obs.id) * obs.amp;
+        const dx = obs.amp > 0 ? Math.sin(nowTime * obs.speed + obs.id) * obs.amp : 0;
         const currentObsX = obs.xBase + dx;
 
         // Perform standard AABB collision checking
@@ -343,6 +470,14 @@ export default function GameView({ code }: GameViewProps) {
           cy + carH / 2 > obs.y - obs.h / 2 &&
           cy - carH / 2 < obs.y + obs.h / 2
         ) {
+          // If we are currently in the air jumping, we can bypass obstacles that are on the ground Level!
+          if (my.z > 10) {
+            // Can jump over gaps, low safety hurdles, asteroids, or static ground panels.
+            // High Walls CANNOT be jumped over!
+            if (obs.style !== 'high-wall') {
+              continue;
+            }
+          }
           return true;
         }
       }
@@ -351,8 +486,10 @@ export default function GameView({ code }: GameViewProps) {
 
     const checkBoostOverlaps = (cx: number, cy: number): number | null => {
       const carRadius = 25;
+      const gameMode = room?.current_game || 'Obstacle Dash';
+      const boosts = getActiveBoosts(gameMode);
 
-      for (const b of DETERMINISTIC_BOOSTS) {
+      for (const b of boosts) {
         if (collectedBoostIds.has(b.id)) continue;
 
         const distance = Math.hypot(cx - b.x, cy - b.y);
@@ -454,51 +591,179 @@ export default function GameView({ code }: GameViewProps) {
       }
 
       // 3. Draw Deterministic Power Boost nodes
-      for (const b of DETERMINISTIC_BOOSTS) {
+      const activeBoostsList = getActiveBoosts(gameMode);
+      for (const b of activeBoostsList) {
         if (collectedBoostIds.has(b.id)) continue;
 
         const by = b.y - camY;
         if (by > -30 && by < canvas.height + 30) {
-          ctx.beginPath();
-          ctx.arc(b.x, by, 12, 0, Math.PI * 2);
-          ctx.fillStyle = '#059669';
-          ctx.fill();
+          if (b.type === 'coin') {
+            // Draw a shiny gold coin
+            ctx.beginPath();
+            ctx.arc(b.x, by, 10, 0, Math.PI * 2);
+            ctx.fillStyle = '#f59e0b'; // Amber-500
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
 
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 2;
-          ctx.stroke();
+            // Inner circle
+            ctx.beginPath();
+            ctx.arc(b.x, by, 6, 0, Math.PI * 2);
+            ctx.strokeStyle = '#dfa207';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          } else if (b.type === 'shield') {
+            // Draw purple shield
+            ctx.beginPath();
+            ctx.arc(b.x, by, 12, 0, Math.PI * 2);
+            ctx.fillStyle = '#8b5cf6'; // Violet-500
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
 
-          // Speed chevron design
-          ctx.fillStyle = '#fff';
-          ctx.beginPath();
-          ctx.moveTo(b.x - 4, by + 4);
-          ctx.lineTo(b.x, by - 4);
-          ctx.lineTo(b.x + 4, by + 4);
-          ctx.closePath();
-          ctx.fill();
+            // S letter indicator symbol
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 9px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🛡️', b.x, by);
+          } else if (b.type === 'parkour-boost') {
+            // Draw cute neon blue spring/feather jump pad
+            ctx.beginPath();
+            ctx.arc(b.x, by, 12, 0, Math.PI * 2);
+            ctx.fillStyle = '#06b6d4'; // Cyan-500
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 9px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('⚡', b.x, by);
+          } else {
+            // Speed pad style
+            ctx.beginPath();
+            ctx.arc(b.x, by, 12, 0, Math.PI * 2);
+            ctx.fillStyle = '#059669';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Speed chevron design
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.moveTo(b.x - 4, by + 4);
+            ctx.lineTo(b.x, by - 4);
+            ctx.lineTo(b.x + 4, by + 4);
+            ctx.closePath();
+            ctx.fill();
+          }
         }
       }
 
-      // 4. Draw Deterministic Moving Obstacles
+      // 4. Draw Deterministic Moving Obstacles (Dynamic based on selected active arena)
       const nowTime = Date.now();
-      for (const obs of DETERMINISTIC_OBSTACLES) {
+      const currentObstaclesList = getActiveObstacles(gameMode);
+      for (const obs of currentObstaclesList) {
         const oy = obs.y - camY;
-        if (oy > -50 && oy < canvas.height + 50) {
-          // Floating wave equation
-          const dx = Math.sin(nowTime * obs.speed + obs.id) * obs.amp;
+        if (oy > -100 && oy < canvas.height + 100) {
+          // Floating wave equation (if amplitude > 0)
+          const dx = obs.amp > 0 ? Math.sin(nowTime * obs.speed + obs.id) * obs.amp : 0;
           const currentObsX = obs.xBase + dx;
 
-          ctx.fillStyle = obs.style === 'neon-red' ? '#78716c' : (obs.style === 'cyber-barrier' ? '#44403c' : '#a8a29e');
+          if (obs.style === 'asteroid') {
+            // Draw cool detailed asteroid
+            ctx.beginPath();
+            ctx.arc(currentObsX, oy, obs.w / 2, 0, Math.PI * 2);
+            ctx.fillStyle = '#4a2511'; // brownish asteroid
+            ctx.fill();
+            ctx.strokeStyle = '#ea580c'; // fiery borders
+            ctx.lineWidth = 2;
+            ctx.stroke();
 
-          // Draw round neon capsules
-          ctx.beginPath();
-          ctx.roundRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h, 6);
-          ctx.fill();
+            // Draw craters
+            ctx.fillStyle = '#2d1508';
+            ctx.beginPath();
+            ctx.arc(currentObsX - obs.w / 5, oy - obs.h / 5, obs.w / 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(currentObsX + obs.w / 4, oy + obs.h / 6, obs.w / 6, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (obs.style === 'floor-gap') {
+            // Draw a bottomless pit in the track floor (must jump over!)
+            ctx.fillStyle = '#1c1917'; // track background
+            ctx.fillRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
+            
+            // Draw hazard glowing yellow/orange dashed boundaries
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([6, 4]);
+            ctx.strokeRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
+            ctx.setLineDash([]); // clear dash
 
-          // Stroke details
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 1;
-          ctx.stroke();
+            // Draw text warning "GAP!" if screen size allows
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('⚠️ CHASM ⚠️', currentObsX, oy + 3);
+          } else if (obs.style === 'high-wall') {
+            // Huge orange glowing hazard wall
+            ctx.fillStyle = '#ea580c';
+            ctx.fillRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
+
+            // Highlight border
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
+
+            // Hazard lines
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            for (let xl = currentObsX - obs.w / 2; xl < currentObsX + obs.w / 2; xl += 15) {
+              ctx.moveTo(xl, oy - obs.h / 2);
+              ctx.lineTo(xl + 10, oy + obs.h / 2);
+            }
+            ctx.stroke();
+          } else if (obs.style === 'low-hurdle') {
+            // Yellow warning hurdle
+            ctx.fillStyle = '#eab308';
+            ctx.beginPath();
+            ctx.roundRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h, 4);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
+
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 8px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('JUMP OVER', currentObsX, oy + 3);
+          } else if (obs.style === 'energy-gate') {
+            // Cyan glowing energy gate
+            ctx.fillStyle = 'rgba(6, 182, 212, 0.2)';
+            ctx.fillRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
+
+            ctx.strokeStyle = '#06b6d4';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h);
+          } else {
+            // Obstacle Dash styles
+            ctx.fillStyle = obs.style === 'neon-red' ? '#78716c' : (obs.style === 'cyber-barrier' ? '#44403c' : '#a8a29e');
+            ctx.beginPath();
+            ctx.roundRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h, 6);
+            ctx.fill();
+
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
         }
       }
 
@@ -514,7 +779,8 @@ export default function GameView({ code }: GameViewProps) {
             vx: plyr.velocity?.x || 0,
             vy: plyr.velocity?.y || 0,
             finished: plyr.finished,
-            score: plyr.score
+            score: plyr.score || 0,
+            z: plyr.velocity?.z || 0
           };
           lerpObj = interpolationsRef.current[plyr.id];
         } else {
@@ -523,12 +789,14 @@ export default function GameView({ code }: GameViewProps) {
           lerpObj.y += (plyr.y_position - lerpObj.y) * 0.18;
           lerpObj.vx += ((plyr.velocity?.x || 0) - lerpObj.vx) * 0.18;
           lerpObj.vy += ((plyr.velocity?.y || 0) - lerpObj.vy) * 0.18;
+          lerpObj.z += ((plyr.velocity?.z || 0) - lerpObj.z) * 0.18;
           lerpObj.finished = plyr.finished;
+          lerpObj.score = plyr.score || 0;
         }
 
         const ry = lerpObj.y - camY;
         if (ry > -50 && ry < canvas.height + 50) {
-          drawCarObject(ctx, lerpObj.x, ry, plyr.username, false, !!plyr.finished, false, 0);
+          drawCarObject(ctx, lerpObj.x, ry, plyr.username, false, !!plyr.finished, false, 0, lerpObj.z);
         }
       });
 
@@ -542,11 +810,12 @@ export default function GameView({ code }: GameViewProps) {
         true,
         my.finished,
         my.crashTimer > 0,
-        my.boostTimer
+        my.boostTimer,
+        my.z
       );
     };
 
-    // Core Car Drawer SVG pipeline
+    // Core Car Drawer SVG pipeline with jump height (z) rendering support
     const drawCarObject = (
       ctx: CanvasRenderingContext2D,
       cx: number,
@@ -555,16 +824,26 @@ export default function GameView({ code }: GameViewProps) {
       isSelf: boolean,
       finished: boolean,
       crashed: boolean,
-      boostFrames: number
+      boostFrames: number,
+      z = 0
     ) => {
       ctx.save();
+
+      // Draw Ground Shadow under the car based on altitude altitude
+      const shadowScale = Math.max(0.3, 1 - z / 85);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 14 * shadowScale, 8 * shadowScale, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      const renderY = cy - z;
 
       // Jet engines visual particles trailing behind
       if (Math.abs(myPlayerRef.current.vy) > 2) {
         ctx.fillStyle = boostFrames > 0 ? '#10b981' : '#78716c';
         const trailLength = boostFrames > 0 ? 15 : 8;
-        ctx.fillRect(cx - 8, cy + 25, 4, trailLength);
-        ctx.fillRect(cx + 4, cy + 25, 4, trailLength);
+        ctx.fillRect(cx - 8, renderY + 25, 4, trailLength);
+        ctx.fillRect(cx + 4, renderY + 25, 4, trailLength);
       }
 
       // Base body color
@@ -578,42 +857,42 @@ export default function GameView({ code }: GameViewProps) {
 
       // Main Capsule shape
       ctx.beginPath();
-      ctx.roundRect(cx - 15, cy - 25, 30, 50, 4);
+      ctx.roundRect(cx - 15, renderY - 25, 30, 50, 4);
       ctx.fill();
 
       // Tires
       ctx.fillStyle = '#292524';
-      ctx.fillRect(cx - 17, cy - 18, 3, 8);
-      ctx.fillRect(cx + 14, cy - 18, 3, 8);
-      ctx.fillRect(cx - 17, cy + 8, 3, 8);
-      ctx.fillRect(cx + 14, cy + 8, 3, 8);
+      ctx.fillRect(cx - 17, renderY - 18, 3, 8);
+      ctx.fillRect(cx + 14, renderY - 18, 3, 8);
+      ctx.fillRect(cx - 17, renderY + 8, 3, 8);
+      ctx.fillRect(cx + 14, renderY + 8, 3, 8);
 
       // Windshield glass
       ctx.fillStyle = '#f5f5f4';
       ctx.beginPath();
-      ctx.roundRect(cx - 9, cy - 12, 18, 14, 1);
+      ctx.roundRect(cx - 9, renderY - 12, 18, 14, 1);
       ctx.fill();
 
       // High-contrast custom label tag
       ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
       ctx.font = 'bold 11px system-ui, sans-serif';
       const measure = ctx.measureText(uName);
-      ctx.fillRect(cx - measure.width / 2 - 4, cy - 40, measure.width + 8, 16);
+      ctx.fillRect(cx - measure.width / 2 - 4, renderY - 44, measure.width + 8, 16);
 
       ctx.strokeStyle = 'rgba(120, 113, 108, 0.3)';
       ctx.lineWidth = 1;
-      ctx.strokeRect(cx - measure.width / 2 - 4, cy - 40, measure.width + 8, 16);
+      ctx.strokeRect(cx - measure.width / 2 - 4, renderY - 44, measure.width + 8, 16);
 
       ctx.fillStyle = '#1c1917';
       ctx.textAlign = 'center';
-      ctx.fillText(uName, cx, cy - 28);
+      ctx.fillText(uName, cx, renderY - 32);
 
       // Glowing powerup halo
       if (boostFrames > 0) {
         ctx.strokeStyle = 'rgba(5, 150, 105, 0.6)';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(cx, cy, 32, 0, Math.PI * 2);
+        ctx.arc(cx, renderY, 32, 0, Math.PI * 2);
         ctx.stroke();
       }
 

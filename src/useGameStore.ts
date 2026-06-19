@@ -7,7 +7,7 @@ export interface Player {
   username: string;
   x_position: number;
   y_position: number;
-  velocity: { x: number; y: number };
+  velocity: { x: number; y: number; z?: number };
   score: number;
   ready: boolean;
   finished: boolean;
@@ -24,6 +24,8 @@ export interface Room {
     winnerId?: string;
     startTime?: number;
     votes?: Record<string, string>; // player_id -> game_name
+    hostOverride?: boolean;
+    hostSelectedGame?: string | null;
   };
   current_game: string;
   status: 'lobby' | 'playing' | 'finished';
@@ -67,13 +69,14 @@ interface GameStoreState {
   leaveRoom: () => Promise<void>;
   toggleReady: () => Promise<void>;
   startGame: () => Promise<void>;
-  updatePlayerPosition: (x: number, y: number, vx: number, vy: number, finished?: boolean, score?: number) => Promise<void>;
+  updatePlayerPosition: (x: number, y: number, vx: number, vy: number, finished?: boolean, score?: number, z?: number) => Promise<void>;
   sendChatMessage: (text: string) => Promise<void>;
   sendGameEvent: (type: string, payload: any) => Promise<void>;
   kickPlayer: (playerId: string) => Promise<void>;
   resetRoomToLobby: () => Promise<void>;
   submitGameVote: (gameName: string) => Promise<void>;
   hostSelectGame: (gameName: string) => Promise<void>;
+  hostClearOverride: () => Promise<void>;
   subscribeToRoom: (roomCode: string) => void;
   unsubscribeFromRoom: () => void;
 }
@@ -431,7 +434,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }
     },
 
-    updatePlayerPosition: async (x, y, vx, vy, finished = false, score?: number) => {
+    updatePlayerPosition: async (x, y, vx, vy, finished = false, score?: number, z = 0) => {
       const { roomId, currentUserId } = get();
       if (!roomId || !currentUserId) return;
 
@@ -440,7 +443,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         const payload: any = {
           x_position: x,
           y_position: y,
-          velocity: { x: vx, y: vy },
+          velocity: { x: vx, y: vy, z: z },
           finished: finished
         };
         
@@ -584,27 +587,49 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         // Fetch current room to prevent overwriting keys in game_state
         const { data: roomData, error: fetchErr } = await supabase
           .from('rooms')
-          .select('game_state')
+          .select('game_state, current_game, host_id')
           .eq('id', roomId)
           .single();
 
         if (fetchErr) throw fetchErr;
 
         const currentGameState = roomData?.game_state || {};
-        const currentVotes = currentGameState.votes || {};
+        const currentVotes = { ...(currentGameState.votes || {}) };
+        currentVotes[currentUserId] = gameName;
+
+        // Recalculate majority voted game
+        const voteCounts: Record<string, number> = {};
+        Object.values(currentVotes).forEach((gName: any) => {
+          voteCounts[gName] = (voteCounts[gName] || 0) + 1;
+        });
+
+        let majorityGame = roomData.current_game;
+        let maxVotes = 0;
+        
+        // Find most voted game
+        for (const [gName, count] of Object.entries(voteCounts)) {
+          if (count > maxVotes) {
+            maxVotes = count;
+            majorityGame = gName;
+          } else if (count === maxVotes && gName === currentVotes[roomData.host_id || '']) {
+            // Host vote is the ultimate tie breaker!
+            majorityGame = gName;
+          }
+        }
+
+        // Only change current_game if host hasn't explicitly locked an override
+        const finalActiveGame = currentGameState.hostOverride ? (currentGameState.hostSelectedGame || roomData.current_game) : majorityGame;
 
         const updatedGameState = {
           ...currentGameState,
-          votes: {
-            ...currentVotes,
-            [currentUserId]: gameName
-          }
+          votes: currentVotes
         };
 
         await supabase
           .from('rooms')
           .update({
-            game_state: updatedGameState
+            game_state: updatedGameState,
+            current_game: finalActiveGame
           })
           .eq('id', roomId);
 
@@ -620,10 +645,26 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       try {
         const supabase = getClient();
         
+        const { data: roomData, error: fetchErr } = await supabase
+          .from('rooms')
+          .select('game_state')
+          .eq('id', roomId)
+          .single();
+
+        if (fetchErr) throw fetchErr;
+
+        const currentGameState = roomData?.game_state || {};
+        const updatedGameState = {
+          ...currentGameState,
+          hostOverride: true,
+          hostSelectedGame: gameName
+        };
+
         await supabase
           .from('rooms')
           .update({
-            current_game: gameName
+            current_game: gameName,
+            game_state: updatedGameState
           })
           .eq('id', roomId);
 
@@ -639,6 +680,70 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
       } catch (err) {
         console.error('Failed host game selection:', err);
+      }
+    },
+
+    hostClearOverride: async () => {
+      const { roomId, isHost } = get();
+      if (!roomId || !isHost) return;
+
+      try {
+        const supabase = getClient();
+        
+        const { data: roomData, error: fetchErr } = await supabase
+          .from('rooms')
+          .select('game_state, current_game, host_id')
+          .eq('id', roomId)
+          .single();
+
+        if (fetchErr) throw fetchErr;
+
+        const currentGameState = roomData?.game_state || {};
+        const currentVotes = currentGameState.votes || {};
+
+        // Recalculate majority voted game amongst players
+        const voteCounts: Record<string, number> = {};
+        Object.values(currentVotes).forEach((gName: any) => {
+          voteCounts[gName] = (voteCounts[gName] || 0) + 1;
+        });
+
+        let targetGame = 'Obstacle Dash';
+        let maxVotes = 0;
+        
+        for (const [gName, count] of Object.entries(voteCounts)) {
+          if (count > maxVotes) {
+            maxVotes = count;
+            targetGame = gName;
+          } else if (count === maxVotes && gName === currentVotes[roomData.host_id || '']) {
+            targetGame = gName;
+          }
+        }
+
+        const updatedGameState = {
+          ...currentGameState,
+          hostOverride: false,
+          hostSelectedGame: null
+        };
+
+        await supabase
+          .from('rooms')
+          .update({
+            current_game: targetGame,
+            game_state: updatedGameState
+          })
+          .eq('id', roomId);
+
+        await supabase
+          .from('messages')
+          .insert({
+            room_id: roomId,
+            player_id: 'SYSTEM',
+            username: 'System',
+            message: `Host unlocked game selection. Active game now follows majority player votes (${targetGame}).`
+          });
+
+      } catch (err) {
+        console.error('Failed to clear host override:', err);
       }
     },
 
