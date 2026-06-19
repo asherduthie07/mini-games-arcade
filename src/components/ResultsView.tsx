@@ -39,12 +39,14 @@ export default function ResultsView({ code }: ResultsViewProps) {
     window.dispatchEvent(new Event('pushstate'));
   };
 
-  // Sort players by distance hierarchy or finished flags
+  // Sort players by score for Space Dodge, or distance/finished flags for races
+  const isSpaceDodge = room?.current_game === 'Space Dodge' || room?.current_game === 'Space Doge';
   const sortedStandings = [...players].sort((a, b) => {
+    if (isSpaceDodge) {
+      return (b.score || 0) - (a.score || 0);
+    }
     if (a.finished && !b.finished) return -1;
     if (!a.finished && b.finished) return 1;
-    
-    // If finished / completed, or sort by horizontal progress
     return b.x_position - a.x_position; 
   });
 
@@ -179,9 +181,16 @@ export default function ResultsView({ code }: ResultsViewProps) {
                 </span>
               </div>
 
-              <span className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border ${plyr.finished ? 'bg-green-50 text-green-700 border-green-250' : 'bg-red-50 text-red-700 border-red-250'}`}>
-                {plyr.finished ? 'Complete' : 'DNF'}
-              </span>
+              <div className="flex items-center gap-3">
+                {isSpaceDodge && (
+                  <span className="text-xs font-mono font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
+                    {plyr.score || 0} pts
+                  </span>
+                )}
+                <span className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border ${plyr.finished ? 'bg-green-50 text-green-700 border-green-250' : 'bg-red-50 text-red-700 border-red-250'}`}>
+                  {isSpaceDodge ? (plyr.finished ? 'Destroyed' : 'Surviving') : (plyr.finished ? 'Complete' : 'DNF')}
+                </span>
+              </div>
             </div>
           ))}
         </div>
