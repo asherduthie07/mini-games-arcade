@@ -8,6 +8,30 @@ interface LobbyViewProps {
   code: string;
 }
 
+const ARCADE_GAMES = [
+  {
+    id: 'Obstacle Dash',
+    name: 'Obstacle Dash',
+    description: 'Avoid high-speed static and pulsing barriers to finish first.',
+    color: 'from-red-500 to-orange-500',
+    icon: '🔥'
+  },
+  {
+    id: 'Space Dodge',
+    name: 'Space Dodge',
+    description: 'Dodge endless falling asteroids! Survival duration dictating triumph.',
+    color: 'from-blue-500 to-indigo-500',
+    icon: '☄️'
+  },
+  {
+    id: 'Neon Coin Rush',
+    name: 'Neon Coin Rush',
+    description: 'Collect maximum glowing nodes. Grid winner is decided by coin scores.',
+    color: 'from-green-500 to-teal-500',
+    icon: '💎'
+  }
+];
+
 export default function LobbyView({ code }: LobbyViewProps) {
   const [copied, setCopied] = useState(false);
   const [chatInput, setChatInput] = useState('');
@@ -28,7 +52,9 @@ export default function LobbyView({ code }: LobbyViewProps) {
     toggleReady,
     startGame,
     sendChatMessage,
-    kickPlayer
+    kickPlayer,
+    submitGameVote,
+    hostSelectGame
   } = useGameStore();
 
   // Handle automatic joining if room is refreshed or deep linked directly
@@ -216,6 +242,112 @@ export default function LobbyView({ code }: LobbyViewProps) {
             </div>
           </div>
 
+          {/* GAME SELECTION / VOTING SYSTEM */}
+          <div className="bg-stone-900/60 border border-stone-800 p-6 rounded-2xl flex flex-col gap-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-stone-800 pb-4 gap-2">
+              <div>
+                <h3 className="font-bold uppercase tracking-wide text-sm text-stone-200">
+                  Select Game Mode Arena
+                </h3>
+                <p className="text-xs text-stone-500 font-light mt-0.5">
+                  Play the most-voted game or let the host directly choose.
+                </p>
+              </div>
+              <span className="self-start sm:self-center text-xs font-semibold px-2.5 py-1 bg-stone-950 text-stone-400 rounded-lg border border-stone-800/80 font-mono">
+                Votes Cast: {Object.keys(room?.game_state?.votes || {}).length} / {players.length}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {ARCADE_GAMES.map((game) => {
+                const isSelected = room?.current_game === game.id;
+                const votes = players.filter(p => room?.game_state?.votes?.[p.id] === game.id);
+                const hasMyVote = room?.game_state?.votes?.[currentUserId || ''] === game.id;
+
+                return (
+                  <div
+                    key={game.id}
+                    className={`relative rounded-xl p-4 border transition-all flex flex-col justify-between ${
+                      isSelected
+                        ? 'bg-stone-950 border-orange-500/70 shadow-md shadow-orange-950/20'
+                        : 'bg-stone-950/40 border-stone-850 hover:border-stone-700/60'
+                    }`}
+                  >
+                    {isSelected && (
+                      <span className="absolute -top-2.5 left-4 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider bg-orange-600 text-stone-100 rounded-md border border-orange-500 shadow-md">
+                        Selected Game
+                      </span>
+                    )}
+
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xl">{game.icon}</span>
+                        <h4 className="font-bold text-sm text-stone-100">{game.name}</h4>
+                      </div>
+                      <p className="text-xs text-stone-400 leading-relaxed font-light">
+                        {game.description}
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Voters avatars or names display */}
+                      {votes.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 pt-2 border-t border-stone-900">
+                          {votes.map(v => (
+                            <span
+                              key={v.id}
+                              className="text-[9px] bg-stone-950 border border-stone-850 text-stone-400 px-2 py-0.5 rounded font-mono truncate max-w-full"
+                              title={`${v.username} voted for this`}
+                            >
+                              🗳️ {v.username}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="pt-2 border-t border-stone-900 text-[9px] text-stone-600 font-mono">
+                          No current votes
+                        </div>
+                      )}
+
+                      <div className="flex flex-col gap-1.5">
+                        <button
+                          onClick={() => {
+                            playBeep(600, 0.08, 'sine');
+                            submitGameVote(game.id);
+                          }}
+                          className={`w-full py-2 text-xs font-bold rounded-lg border transition-all ${
+                            hasMyVote
+                              ? 'bg-emerald-600 text-white border-transparent shadow shadow-emerald-950'
+                              : 'bg-stone-900 hover:bg-stone-800 text-stone-300 border-stone-800/80 hover:border-stone-700'
+                          }`}
+                        >
+                          {hasMyVote ? '✓ Voted' : 'Vote'}
+                        </button>
+
+                        {isHost && (
+                          <button
+                            onClick={() => {
+                              playBeep(850, 0.08, 'sawtooth');
+                              hostSelectGame(game.id);
+                            }}
+                            className={`w-full py-1.5 text-[9px] uppercase tracking-wide font-black rounded-md border transition-all ${
+                              isSelected
+                                ? 'bg-orange-600/10 text-orange-400 border-orange-500/20 cursor-default'
+                                : 'bg-stone-950 text-orange-400 border-stone-850 hover:bg-orange-600 hover:text-white hover:border-transparent'
+                            }`}
+                            disabled={isSelected}
+                          >
+                            {isSelected ? 'Direct Active Selection' : 'Host Direct Override'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* LOBBY STANDBY SETTINGS */}
           <div className="bg-stone-900/60 border border-stone-800 p-6 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
@@ -321,14 +453,14 @@ export default function LobbyView({ code }: LobbyViewProps) {
 
       {/* Countdown overlay overlay */}
       {countdownActive && (
-        <CountdownOverlay seconds={room.game_state?.countdown || 5} />
+        <CountdownOverlay seconds={room.game_state?.countdown || 5} gameName={room.current_game} />
       )}
     </div>
   );
 }
 
 // Simple internal countdown countdown overlay
-function CountdownOverlay({ seconds }: { seconds: number }) {
+function CountdownOverlay({ seconds, gameName }: { seconds: number; gameName: string }) {
   const [internalSeconds, setInternalSeconds] = useState(seconds);
 
   useEffect(() => {
@@ -363,7 +495,7 @@ function CountdownOverlay({ seconds }: { seconds: number }) {
         transition={{ duration: 0.5 }}
         className="text-center"
       >
-        <p className="text-stone-500 uppercase tracking-widest text-sm mb-2 font-bold animate-pulse">Launching Obstacle Dash</p>
+        <p className="text-stone-500 uppercase tracking-widest text-sm mb-2 font-bold animate-pulse">Launching {gameName}</p>
         <span className="text-8xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-orange-500 font-mono">
           {internalSeconds > 0 ? internalSeconds : 'GO!'}
         </span>

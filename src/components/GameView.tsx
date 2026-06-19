@@ -79,6 +79,7 @@ export default function GameView({ code }: GameViewProps) {
     boostTimer: number;
     crashTimer: number;
     finished: boolean;
+    score: number;
   }>({
     x: 400,
     y: 2850,
@@ -87,7 +88,8 @@ export default function GameView({ code }: GameViewProps) {
     heading: 0,
     boostTimer: 0,
     crashTimer: 0,
-    finished: false
+    finished: false,
+    score: 0
   });
 
   // Track player inputs
@@ -108,6 +110,54 @@ export default function GameView({ code }: GameViewProps) {
   // Local list of active boosts to hide once collected
   const [collectedBoostIds, setCollectedBoostIds] = useState<Set<number>>(new Set());
   const [speedVal, setSpeedVal] = useState(0);
+  const [secondsLeft, setSecondsLeft] = useState(30);
+
+  // Initialize and synchronize game mode values
+  useEffect(() => {
+    const gameMode = room?.current_game || 'Obstacle Dash';
+    if (gameMode === 'Space Dodge') {
+      myPlayerRef.current.score = 1000; // Start with full shields
+    } else {
+      myPlayerRef.current.score = 0; // Coins or normal start at 0
+    }
+  }, [room?.current_game]);
+
+  // Space Dodge countdown timer logic
+  useEffect(() => {
+    const gameMode = room?.current_game || 'Obstacle Dash';
+    if (gameMode !== 'Space Dodge') return;
+
+    setSecondsLeft(30);
+
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          
+          if (!myPlayerRef.current.finished) {
+            myPlayerRef.current.finished = true;
+            playVictorySound();
+            updatePlayerPosition(myPlayerRef.current.x, myPlayerRef.current.y, 0, 0, true, myPlayerRef.current.score);
+            
+            sendGameEvent('race_complete', {
+              username: username,
+              finishTime: Date.now(),
+              score: myPlayerRef.current.score
+            });
+
+            setTimeout(() => {
+              window.history.pushState(null, '', `/results/${code}`);
+              window.dispatchEvent(new Event('pushstate'));
+            }, 3000);
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [room?.current_game, updatePlayerPosition, sendGameEvent, username, code]);
 
   // Keyboard Event Handlers
   useEffect(() => {
@@ -137,7 +187,7 @@ export default function GameView({ code }: GameViewProps) {
       const my = myPlayerRef.current;
       if (my.finished) return; // Wait to submit final finish results
 
-      updatePlayerPosition(my.x, my.y, my.vx, my.vy, my.finished);
+      updatePlayerPosition(my.x, my.y, my.vx, my.vy, my.finished, my.score);
     }, 100);
 
     return () => clearInterval(syncInterval);
@@ -211,6 +261,12 @@ export default function GameView({ code }: GameViewProps) {
         my.crashTimer = 90; // Frame buffer recovery timer (1.5 seconds)
         my.boostTimer = 0; // Cancel current gains
         my.vy = -1.5; // Drag down speed instantly
+        
+        const gameMode = room?.current_game || 'Obstacle Dash';
+        if (gameMode === 'Space Dodge') {
+          my.score = Math.max(0, my.score - 150);
+        }
+
         playCrashSound();
         sendGameEvent('crash', { username });
       }
@@ -219,6 +275,14 @@ export default function GameView({ code }: GameViewProps) {
       const collectedBoost = checkBoostOverlaps(my.x, my.y);
       if (collectedBoost !== null) {
         my.boostTimer = 150; // Active speed pad frame loop (2.5 seconds)
+        
+        const gameMode = room?.current_game || 'Obstacle Dash';
+        if (gameMode === 'Space Dodge') {
+          my.score = Math.min(1000, my.score + 100);
+        } else if (gameMode === 'Neon Coin Rush') {
+          my.score += 10;
+        }
+
         playBoostSound();
         setCollectedBoostIds(prev => {
           const updated = new Set(prev);
@@ -227,24 +291,34 @@ export default function GameView({ code }: GameViewProps) {
         });
       }
 
-      // 5. Evaluate Finish Gate
-      if (my.y <= 180 && !my.finished) {
-        my.finished = true;
-        playVictorySound();
-        // Submit final authoritative data
-        updatePlayerPosition(my.x, my.y, 0, 0, true);
-        
-        // Notify lobby victory
-        sendGameEvent('race_complete', {
-          username: username,
-          finishTime: Date.now()
-        });
-        
-        // Push user to results screen
-        setTimeout(() => {
-          window.history.pushState(null, '', `/results/${code}`);
-          window.dispatchEvent(new Event('pushstate'));
-        }, 3000);
+      // 5. Evaluate Finish Gate vs Looping
+      const isSpaceDodge = (room?.current_game || 'Obstacle Dash') === 'Space Dodge';
+      if (isSpaceDodge) {
+        if (my.y <= 245) {
+          // Reset y and let boosts reborn on the looping canvas
+          my.y = 2800;
+          setCollectedBoostIds(new Set());
+        }
+      } else {
+        if (my.y <= 180 && !my.finished) {
+          my.finished = true;
+          playVictorySound();
+          // Submit final authoritative data with score
+          updatePlayerPosition(my.x, my.y, 0, 0, true, my.score);
+          
+          // Notify lobby victory
+          sendGameEvent('race_complete', {
+            username: username,
+            finishTime: Date.now(),
+            score: my.score
+          });
+          
+          // Push user to results screen
+          setTimeout(() => {
+            window.history.pushState(null, '', `/results/${code}`);
+            window.dispatchEvent(new Event('pushstate'));
+          }, 3000);
+        }
       }
 
       // Set visible speedometer value (relative)
@@ -330,9 +404,21 @@ export default function GameView({ code }: GameViewProps) {
 
       // Neon Lane Sidewalls
       ctx.lineWidth = 4;
-      ctx.strokeStyle = '#ef4444'; // Red-orange neon track outline
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = '#f97316';
+      const gameMode = room?.current_game || 'Obstacle Dash';
+      
+      if (gameMode === 'Space Dodge') {
+        ctx.strokeStyle = '#a855f7'; // Purple neon sidewalls
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#c084fc';
+      } else if (gameMode === 'Neon Coin Rush') {
+        ctx.strokeStyle = '#10b981'; // Green neon sidewalls
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#34d399';
+      } else {
+        ctx.strokeStyle = '#ef4444'; // Red-orange neon track outline
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#f97316';
+      }
       
       ctx.beginPath();
       ctx.moveTo(100, 0);
@@ -342,8 +428,15 @@ export default function GameView({ code }: GameViewProps) {
       ctx.stroke();
       ctx.shadowBlur = 0; // Clear shadow for subsequent ops
 
-      // Yellow neon warning dashes
-      ctx.fillStyle = 'rgba(234, 179, 8, 0.4)';
+      // Yellow/Purple/Green warning dashes
+      if (gameMode === 'Space Dodge') {
+        ctx.fillStyle = 'rgba(168, 85, 247, 0.4)';
+      } else if (gameMode === 'Neon Coin Rush') {
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.4)';
+      } else {
+        ctx.fillStyle = 'rgba(234, 179, 8, 0.4)';
+      }
+
       for (let y = 0; y < 3000; y += 120) {
         const renderYOffset = y - camY;
         if (renderYOffset > -50 && renderYOffset < canvas.height + 50) {
@@ -352,17 +445,18 @@ export default function GameView({ code }: GameViewProps) {
         }
       }
 
-      // 2. Draw Start/Finish lines
-      // Finish line
-      const finishY = 180 - camY;
-      ctx.fillStyle = '#10b981';
-      ctx.fillRect(100, finishY - 5, 600, 10);
-      
-      // Checkerboard finish pattern
-      ctx.fillStyle = '#ffffff';
-      for (let cx = 100; cx < 700; cx += 30) {
-        if (Math.floor(cx / 30) % 2 === 0) {
-          ctx.fillRect(cx, finishY - 5, 15, 10);
+      // 2. Draw Start/Finish lines (omitted in Space Dodge Survival)
+      if (gameMode !== 'Space Dodge') {
+        const finishY = 180 - camY;
+        ctx.fillStyle = '#10b981';
+        ctx.fillRect(100, finishY - 5, 600, 10);
+        
+        // Checkerboard finish pattern
+        ctx.fillStyle = '#ffffff';
+        for (let cx = 100; cx < 700; cx += 30) {
+          if (Math.floor(cx / 30) % 2 === 0) {
+            ctx.fillRect(cx, finishY - 5, 15, 10);
+          }
         }
       }
 
@@ -565,16 +659,21 @@ export default function GameView({ code }: GameViewProps) {
     name: string;
     progress: number;
     finished: boolean;
+    score: number;
     isSelf: boolean;
   }
+
+  const gameMode = room?.current_game || 'Obstacle Dash';
 
   const sortedLeadboard: LeaderboardEntry[] = players
     .map(p => {
       const isSelf = p.id === currentUserId;
       let playerY = p.y_position;
+      let playerScore = p.score || 0;
       
       if (isSelf) {
         playerY = myPlayerRef.current.y;
+        playerScore = myPlayerRef.current.score;
       }
 
       const pct = Math.max(0, Math.min(100, Math.round(((2850 - playerY) / 2670) * 100)));
@@ -582,13 +681,28 @@ export default function GameView({ code }: GameViewProps) {
         name: p.username,
         progress: pct,
         finished: isSelf ? myPlayerRef.current.finished : p.finished,
+        score: playerScore,
         isSelf
       };
     })
     .sort((a, b) => {
-      if (a.finished && !b.finished) return -1;
-      if (!a.finished && b.finished) return 1;
-      return b.progress - a.progress;
+      if (gameMode === 'Space Dodge') {
+        const aFinDef = a.finished ? 1 : 0;
+        const bFinDef = b.finished ? 1 : 0;
+        if (aFinDef !== bFinDef) return bFinDef - aFinDef;
+        return b.score - a.score;
+      } else if (gameMode === 'Neon Coin Rush') {
+        const aFinDef = a.finished ? 1 : 0;
+        const bFinDef = b.finished ? 1 : 0;
+        if (aFinDef !== bFinDef) return bFinDef - aFinDef;
+        if (b.score !== a.score) return b.score - a.score;
+        return b.progress - a.progress;
+      } else {
+        const aFinDef = a.finished ? 1 : 0;
+        const bFinDef = b.finished ? 1 : 0;
+        if (aFinDef !== bFinDef) return bFinDef - aFinDef;
+        return b.progress - a.progress;
+      }
     });
 
   return (
@@ -605,18 +719,22 @@ export default function GameView({ code }: GameViewProps) {
           </button>
           
           <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight flex items-center gap-2">
-            <Orbit className="text-red-500 animate-spin" style={{ animationDuration: '6s' }} size={20} />
-            Obstacle Dash
+            <Orbit className={`${gameMode === 'Space Dodge' ? 'text-purple-500' : (gameMode === 'Neon Coin Rush' ? 'text-emerald-500' : 'text-red-500')} animate-spin`} style={{ animationDuration: '6s' }} size={20} />
+            {gameMode}
           </h1>
           <p className="text-xs text-stone-500">
-            Dodge dynamic obstacles, grab glowing speed pads and reach the finish line.
+            {gameMode === 'Space Dodge'
+              ? 'Survive the endless space debris! Avoid asteroids and collisions to preserve your shields.'
+              : gameMode === 'Neon Coin Rush'
+              ? 'Gather glowing energy node diamonds to maximize your high score before crossing the finish line.'
+              : 'Dodge dynamic obstacles, grab glowing speed pads and reach the finish line first.'}
           </p>
         </div>
 
         {/* Action guidelines */}
         <div className="flex items-center gap-3 text-xs bg-stone-900 border border-stone-800 p-2.5 rounded-xl">
           <Zap className="text-yellow-400 fill-yellow-400 animate-bounce" size={14} />
-          <span className="text-stone-300 font-medium">Use W, S, A, D or Arrow Keys to steer the vector!</span>
+          <span className="text-stone-300 font-medium font-mono text-[10px] uppercase">Use W, S, A, D or Arrows to control!</span>
         </div>
       </div>
 
@@ -627,26 +745,71 @@ export default function GameView({ code }: GameViewProps) {
           
           {/* Real-time Speeder */}
           <div className="bg-stone-900/60 border border-stone-800 p-5 rounded-2xl">
-            <h3 className="font-bold uppercase tracking-wider text-xs text-stone-400 mb-3 flex items-center gap-1.5 border-b border-stone-800 pb-2">
-              <Compass size={14} /> telemetry
-            </h3>
-            <div className="text-center py-3">
-              <span className="text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-red-400 to-orange-500">
-                {speedVal}
-              </span>
-              <span className="text-xs text-stone-500 font-semibold uppercase tracking-wider ml-1">KPH</span>
-            </div>
+            {gameMode === 'Space Dodge' ? (
+              <>
+                <h3 className="font-bold uppercase tracking-wider text-xs text-stone-400 mb-3 flex items-center gap-1.5 border-b border-stone-800 pb-2">
+                  <Compass size={14} /> Shield Integrity
+                </h3>
+                <div className="text-center py-2">
+                  <span className="text-3xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-purple-400 to-indigo-500">
+                    {myPlayerRef.current.score}
+                  </span>
+                  <span className="text-xs text-stone-500 font-semibold uppercase tracking-wider ml-1">HP</span>
+                </div>
+              </>
+            ) : gameMode === 'Neon Coin Rush' ? (
+              <>
+                <h3 className="font-bold uppercase tracking-wider text-xs text-stone-400 mb-3 flex items-center gap-1.5 border-b border-stone-800 pb-2">
+                  <Compass size={14} /> Energy Nodes
+                </h3>
+                <div className="text-center py-2">
+                  <span className="text-3xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-emerald-400 to-teal-500">
+                    {myPlayerRef.current.score}
+                  </span>
+                  <span className="text-xs text-stone-500 font-semibold uppercase tracking-wider ml-1">PTS</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="font-bold uppercase tracking-wider text-xs text-stone-400 mb-3 flex items-center gap-1.5 border-b border-stone-800 pb-2">
+                  <Compass size={14} /> telemetry
+                </h3>
+                <div className="text-center py-2">
+                  <span className="text-3xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-red-400 to-orange-500">
+                    {speedVal}
+                  </span>
+                  <span className="text-xs text-stone-500 font-semibold uppercase tracking-wider ml-1">KPH</span>
+                </div>
+              </>
+            )}
             
             {/* Completion metrics bar */}
             <div className="mt-3">
               <div className="flex items-center justify-between text-xs text-stone-400 mb-1.5 font-light">
-                <span>Progress:</span>
-                <span className="font-bold">{progressPercent}%</span>
+                {gameMode === 'Space Dodge' ? (
+                  <>
+                    <span>Time Remaining:</span>
+                    <span className="font-bold font-mono">{secondsLeft}s</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Progress:</span>
+                    <span className="font-bold">{progressPercent}%</span>
+                  </>
+                )}
               </div>
               <div className="w-full h-2 bg-stone-950 rounded-full overflow-hidden border border-stone-800">
                 <div
-                  className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full transition-all"
-                  style={{ width: `${progressPercent}%` }}
+                  className={`h-full rounded-full transition-all bg-gradient-to-r ${
+                    gameMode === 'Space Dodge'
+                      ? 'from-purple-500 to-indigo-500'
+                      : gameMode === 'Neon Coin Rush'
+                      ? 'from-emerald-500 to-teal-500'
+                      : 'from-red-500 to-orange-500'
+                  }`}
+                  style={{
+                    width: `${gameMode === 'Space Dodge' ? (secondsLeft / 30) * 100 : progressPercent}%`
+                  }}
                 />
               </div>
             </div>
@@ -664,12 +827,12 @@ export default function GameView({ code }: GameViewProps) {
                   key={entry.name}
                   className={`flex items-center justify-between p-3 rounded-xl border ${entry.isSelf ? 'bg-gradient-to-r from-stone-950 to-stone-900/60 border-stone-700/80 shadow-md shadow-red-950/5' : 'bg-stone-950/40 border-stone-800/80'}`}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-[70%]">
                     <span className="font-black text-xs text-stone-500 font-mono w-4">
                       #{index + 1}
                     </span>
-                    <div>
-                      <p className={`text-xs font-bold ${entry.isSelf ? 'text-red-400' : 'text-stone-300'}`}>
+                    <div className="truncate">
+                      <p className={`text-xs font-bold truncate ${entry.isSelf ? 'text-red-400' : 'text-stone-300'}`}>
                         {entry.name}
                       </p>
                       <p className="text-[10px] text-stone-500 font-light">
@@ -679,7 +842,13 @@ export default function GameView({ code }: GameViewProps) {
                   </div>
 
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${entry.finished ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-stone-950 text-stone-400'}`}>
-                    {entry.finished ? 'Finished' : `${entry.progress}%`}
+                    {entry.finished
+                      ? 'Finished'
+                      : gameMode === 'Space Dodge'
+                      ? `${entry.score} HP`
+                      : gameMode === 'Neon Coin Rush'
+                      ? `${entry.score} pts`
+                      : `${entry.progress}%`}
                   </span>
                 </div>
               ))}

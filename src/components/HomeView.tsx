@@ -73,13 +73,13 @@ export default function HomeView() {
         className="text-center mb-10"
       >
         <span className="bg-red-500/10 text-red-400 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-widest border border-red-500/20 shadow-sm inline-flex items-center gap-1.5 mb-4">
-          <Flame size={12} className="animate-pulse" /> Live Neon Arena
+          <Flame size={12} className="animate-pulse" /> May the best nigga/chigga win
         </span>
         <h1 className="text-5xl md:text-6xl font-black tracking-tight uppercase bg-clip-text text-transparent bg-gradient-to-r from-red-500 via-orange-500 to-yellow-400">
-          Super Neon Dash
+          The Mini-game Arcade
         </h1>
         <p className="text-gray-400 mt-2 text-sm md:text-base font-light max-w-md mx-auto">
-          High-performance real-time multiplayer micro-racing game. Dash past obstacles list, collect speed nodes.
+          High-performance(hopefully) real-time multiplayer games. 
         </p>
       </motion.div>
 
