@@ -129,23 +129,23 @@ export default function LobbyView({ code }: LobbyViewProps) {
   const countdownActive = room?.status === 'playing' || room?.game_state?.status === 'countdown';
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-8 text-white min-h-[85vh]">
+    <div className="w-full max-w-6xl mx-auto px-4 py-8 text-stone-800 min-h-[85vh]">
       
       {/* Lobby Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <button
             onClick={handleLeave}
-            className="flex items-center gap-1 text-sm text-stone-400 hover:text-red-400 transition-colors mb-3"
+            className="flex items-center gap-1 text-sm text-stone-500 hover:text-stone-800 transition-colors mb-3"
           >
             <ArrowLeft size={14} /> Back to dashboard
           </button>
           
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight">
-              GAME LOBBY: <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-500">{room.current_game}</span>
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-stone-900">
+              GAME LOBBY: <span className="text-stone-800 font-extrabold">{room.current_game}</span>
             </h1>
-            <div className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isConnected ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-stone-500/10 text-stone-400 border border-stone-500/20'}`}>
+            <div className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isConnected ? 'bg-green-155 text-green-700 border border-green-200' : 'bg-stone-100 text-stone-500 border border-stone-200'}`}>
               ● {isConnected ? 'Synchronized' : 'Offline'}
             </div>
           </div>
@@ -155,17 +155,17 @@ export default function LobbyView({ code }: LobbyViewProps) {
         </div>
 
         {/* Invite Code Wrapper */}
-        <div className="bg-stone-900 border border-stone-800 rounded-xl p-3 flex items-center justify-between gap-4">
+        <div className="bg-white border border-stone-200/95 rounded-xl p-3 flex items-center justify-between gap-4 shadow-xs">
           <div>
             <p className="text-xs text-stone-500 font-medium">ROOM CODE</p>
-            <p className="text-lg font-black font-mono tracking-widest text-red-400">{code}</p>
+            <p className="text-lg font-black font-mono tracking-widest text-stone-900">{code}</p>
           </div>
           <button
             onClick={handleCopyLink}
-            className="p-2.5 bg-stone-950 hover:bg-stone-800 text-stone-400 hover:text-white rounded-lg border border-stone-800 transition-colors"
+            className="p-2.5 bg-stone-50 hover:bg-stone-100 text-stone-500 hover:text-stone-800 rounded-lg border border-stone-200 transition-colors"
             title="Copy room invite link"
           >
-            {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
+            {copied ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
           </button>
         </div>
       </div>
@@ -174,13 +174,13 @@ export default function LobbyView({ code }: LobbyViewProps) {
         
         {/* PLAYER LIST SYSTEM */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          <div className="bg-stone-900/60 border border-stone-800 p-6 rounded-2xl">
-            <div className="flex items-center justify-between border-b border-stone-800 pb-4 mb-4">
-              <h2 className="font-bold uppercase tracking-wide text-sm text-stone-400 flex items-center gap-2">
-                <Users size={16} /> Players list ({players.length}/5)
+          <div className="bg-white border border-stone-200 p-6 rounded-2xl shadow-xs">
+            <div className="flex items-center justify-between border-b border-stone-150 pb-4 mb-4">
+              <h2 className="font-bold uppercase tracking-wide text-sm text-stone-600 flex items-center gap-2">
+                <Users size={16} className="text-stone-500" /> Players list ({players.length}/5)
               </h2>
               {isHost && (
-                <span className="text-xs bg-red-500/10 text-red-400 border border-red-500/20 font-bold px-2 py-0.5 rounded">
+                <span className="text-xs bg-stone-100 text-stone-700 border border-stone-205 font-bold px-2 py-0.5 rounded shadow-xs">
                   Host Admin
                 </span>
               )}
@@ -198,19 +198,19 @@ export default function LobbyView({ code }: LobbyViewProps) {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0 }}
-                      className={`flex items-center justify-between p-4 rounded-xl border ${isUser ? 'bg-gradient-to-r from-stone-950 to-stone-900/50 border-stone-700/60' : 'bg-stone-950/40 border-stone-800/80'} transition-all`}
+                      className={`flex items-center justify-between p-3.5 rounded-xl border ${isUser ? 'bg-stone-50 border-stone-300 shadow-xs' : 'bg-white border-stone-150'} transition-all`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full ${plyr.ready ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
+                        <div className={`w-2.5 h-2.5 rounded-full ${plyr.ready ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`} />
                         <div>
                           <div className="flex items-center gap-1.5 font-bold text-sm">
-                            <span className={isUser ? 'text-red-400' : 'text-stone-200'}>
+                            <span className={isUser ? 'text-stone-900 font-extrabold' : 'text-stone-755'}>
                               {plyr.username}
                             </span>
-                            {isUser && <span className="text-xs text-stone-500 font-light">(You)</span>}
-                            {isLobbyHost && <Shield size={12} className="text-orange-500 ml-1" title="Lobby Host" />}
+                            {isUser && <span className="text-xs text-stone-400 font-light">(You)</span>}
+                            {isLobbyHost && <Shield size={12} className="text-stone-550 ml-1" title="Lobby Host" />}
                           </div>
-                          <span className="text-xs text-stone-500 font-light">
+                          <span className="text-xs text-stone-450 font-light">
                             {plyr.ready ? 'Ready to Start' : 'Assembling gears...'}
                           </span>
                         </div>
@@ -224,14 +224,14 @@ export default function LobbyView({ code }: LobbyViewProps) {
                               playBeep(300, 0.15, 'sawtooth');
                               kickPlayer(plyr.id);
                             }}
-                            className="p-1.5 hover:bg-red-500/10 text-stone-500 hover:text-red-500 rounded border border-transparent hover:border-red-500/20 transition-colors"
+                            className="p-1.5 hover:bg-red-50 text-stone-400 hover:text-red-600 rounded border border-transparent hover:border-red-200 transition-colors"
                             title="Kick player"
                           >
                             <Trash2 size={14} />
                           </button>
                         )}
                         
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-bold uppercase ${plyr.ready ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}>
+                        <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold uppercase border ${plyr.ready ? 'bg-green-50 text-green-700 border-green-250' : 'bg-amber-50 text-amber-700 border-amber-250'}`}>
                           {plyr.ready ? 'Ready' : 'Not Ready'}
                         </span>
                       </div>
@@ -243,17 +243,17 @@ export default function LobbyView({ code }: LobbyViewProps) {
           </div>
 
           {/* GAME SELECTION / VOTING SYSTEM */}
-          <div className="bg-stone-900/60 border border-stone-800 p-6 rounded-2xl flex flex-col gap-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-stone-800 pb-4 gap-2">
+          <div className="bg-white border border-stone-200 p-6 rounded-2xl flex flex-col gap-5 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-stone-150 pb-4 gap-2">
               <div>
-                <h3 className="font-bold uppercase tracking-wide text-sm text-stone-200">
+                <h3 className="font-bold uppercase tracking-wide text-sm text-stone-800">
                   Select Game Mode Arena
                 </h3>
                 <p className="text-xs text-stone-500 font-light mt-0.5">
                   Play the most-voted game or let the host directly choose.
                 </p>
               </div>
-              <span className="self-start sm:self-center text-xs font-semibold px-2.5 py-1 bg-stone-950 text-stone-400 rounded-lg border border-stone-800/80 font-mono">
+              <span className="self-start sm:self-center text-xs font-semibold px-2.5 py-1 bg-stone-50 text-stone-600 rounded-lg border border-stone-200 font-mono">
                 Votes Cast: {Object.keys(room?.game_state?.votes || {}).length} / {players.length}
               </span>
             </div>
@@ -269,12 +269,12 @@ export default function LobbyView({ code }: LobbyViewProps) {
                     key={game.id}
                     className={`relative rounded-xl p-4 border transition-all flex flex-col justify-between ${
                       isSelected
-                        ? 'bg-stone-950 border-orange-500/70 shadow-md shadow-orange-950/20'
-                        : 'bg-stone-950/40 border-stone-850 hover:border-stone-700/60'
+                        ? 'bg-stone-50 border-stone-400 shadow-xs'
+                        : 'bg-white border-stone-200/85 hover:border-stone-300'
                     }`}
                   >
                     {isSelected && (
-                      <span className="absolute -top-2.5 left-4 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider bg-orange-600 text-stone-100 rounded-md border border-orange-500 shadow-md">
+                      <span className="absolute -top-2.5 left-4 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-stone-900 text-stone-100 rounded-md border border-stone-800/85">
                         Selected Game
                       </span>
                     )}
@@ -282,9 +282,9 @@ export default function LobbyView({ code }: LobbyViewProps) {
                     <div className="mb-4">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-xl">{game.icon}</span>
-                        <h4 className="font-bold text-sm text-stone-100">{game.name}</h4>
+                        <h4 className="font-bold text-sm text-stone-800">{game.name}</h4>
                       </div>
-                      <p className="text-xs text-stone-400 leading-relaxed font-light">
+                      <p className="text-xs text-stone-500 leading-relaxed font-light">
                         {game.description}
                       </p>
                     </div>
@@ -292,11 +292,11 @@ export default function LobbyView({ code }: LobbyViewProps) {
                     <div className="space-y-3">
                       {/* Voters avatars or names display */}
                       {votes.length > 0 ? (
-                        <div className="flex flex-wrap gap-1 pt-2 border-t border-stone-900">
+                        <div className="flex flex-wrap gap-1 pt-2 border-t border-stone-150">
                           {votes.map(v => (
                             <span
                               key={v.id}
-                              className="text-[9px] bg-stone-950 border border-stone-850 text-stone-400 px-2 py-0.5 rounded font-mono truncate max-w-full"
+                              className="text-[9px] bg-stone-100 border border-stone-200 text-stone-600 px-2 py-0.5 rounded font-mono truncate max-w-full"
                               title={`${v.username} voted for this`}
                             >
                               🗳️ {v.username}
@@ -304,7 +304,7 @@ export default function LobbyView({ code }: LobbyViewProps) {
                           ))}
                         </div>
                       ) : (
-                        <div className="pt-2 border-t border-stone-900 text-[9px] text-stone-600 font-mono">
+                        <div className="pt-2 border-t border-stone-150 text-[9px] text-stone-400 font-mono">
                           No current votes
                         </div>
                       )}
@@ -317,8 +317,8 @@ export default function LobbyView({ code }: LobbyViewProps) {
                           }}
                           className={`w-full py-2 text-xs font-bold rounded-lg border transition-all ${
                             hasMyVote
-                              ? 'bg-emerald-600 text-white border-transparent shadow shadow-emerald-950'
-                              : 'bg-stone-900 hover:bg-stone-800 text-stone-300 border-stone-800/80 hover:border-stone-700'
+                              ? 'bg-emerald-600 text-white border-transparent'
+                              : 'bg-stone-900 hover:bg-stone-800 text-white border-transparent'
                           }`}
                         >
                           {hasMyVote ? '✓ Voted' : 'Vote'}
@@ -330,10 +330,10 @@ export default function LobbyView({ code }: LobbyViewProps) {
                               playBeep(850, 0.08, 'sawtooth');
                               hostSelectGame(game.id);
                             }}
-                            className={`w-full py-1.5 text-[9px] uppercase tracking-wide font-black rounded-md border transition-all ${
+                            className={`w-full py-1.5 text-[9px] uppercase tracking-wide font-bold rounded-md border transition-all ${
                               isSelected
-                                ? 'bg-orange-600/10 text-orange-400 border-orange-500/20 cursor-default'
-                                : 'bg-stone-950 text-orange-400 border-stone-850 hover:bg-orange-600 hover:text-white hover:border-transparent'
+                                ? 'bg-stone-100 text-stone-400 border-stone-200 cursor-default'
+                                : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-900 hover:text-white hover:border-transparent'
                             }`}
                             disabled={isSelected}
                           >
@@ -349,9 +349,9 @@ export default function LobbyView({ code }: LobbyViewProps) {
           </div>
 
           {/* LOBBY STANDBY SETTINGS */}
-          <div className="bg-stone-900/60 border border-stone-800 p-6 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="bg-white border border-stone-200 p-6 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
             <div>
-              <p className="font-bold text-sm uppercase tracking-wider text-stone-400">Match controls</p>
+              <p className="font-bold text-sm uppercase tracking-wider text-stone-700">Match controls</p>
               <p className="text-xs text-stone-500 font-light">
                 {isHost
                   ? 'As host, configure and coordinate start intervals once everyone joins.'
@@ -363,9 +363,9 @@ export default function LobbyView({ code }: LobbyViewProps) {
               {/* Ready btn */}
               <button
                 onClick={toggleReady}
-                className="flex-1 sm:flex-initial px-6 py-3 bg-stone-950 hover:bg-stone-900 text-stone-300 font-semibold rounded-xl border border-stone-800 hover:border-stone-700 transition-colors inline-flex items-center justify-center gap-2 text-sm"
+                className="flex-1 sm:flex-initial px-6 py-3 bg-white hover:bg-stone-50 text-stone-700 font-semibold rounded-xl border border-stone-250 hover:border-stone-350 transition-colors inline-flex items-center justify-center gap-2 text-sm shadow-xs"
               >
-                <Power size={14} className="text-orange-500" />
+                <Power size={14} className="text-stone-500" />
                 Change Ready
               </button>
 
@@ -373,7 +373,7 @@ export default function LobbyView({ code }: LobbyViewProps) {
               {isHost && (
                 <button
                   onClick={handleStartGame}
-                  className="flex-1 sm:flex-initial px-6 py-3 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-stone-100 font-bold rounded-xl shadow-lg shadow-red-950/20 hover:shadow-orange-900/10 transition-all inline-flex items-center justify-center gap-2 text-sm uppercase tracking-wide"
+                  className="flex-1 sm:flex-initial px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl shadow-xs transition-all inline-flex items-center justify-center gap-2 text-sm uppercase tracking-wider"
                 >
                   <Play size={14} fill="currentColor" />
                   Ignite Dash
@@ -384,20 +384,20 @@ export default function LobbyView({ code }: LobbyViewProps) {
         </div>
 
         {/* CHAT PANEL */}
-        <div className="bg-stone-900/60 border border-stone-800 rounded-2xl flex flex-col h-[500px]">
-          <div className="p-4 border-b border-stone-800 flex items-center justify-between">
-            <h3 className="font-bold uppercase tracking-wide text-xs text-stone-400 flex items-center gap-1.5">
-              <MessageSquare size={14} /> Lobby chat
+        <div className="bg-white border border-stone-200 rounded-2xl flex flex-col h-[500px] shadow-xs">
+          <div className="p-4 border-b border-stone-150 flex items-center justify-between">
+            <h3 className="font-bold uppercase tracking-wide text-xs text-stone-700 flex items-center gap-1.5">
+              <MessageSquare size={14} className="text-stone-500" /> Lobby chat
             </h3>
-            <span className="text-[10px] text-stone-500">Live Updates</span>
+            <span className="text-[10px] text-stone-400">Live Updates</span>
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-3 font-light text-sm">
+          <div className="flex-1 p-4 overflow-y-auto space-y-3 font-light text-sm bg-stone-50/40">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-4">
-                <MessageSquare size={30} className="text-stone-700 mb-2" />
-                <p className="text-xs text-stone-600">Send a greeting message to start the room chatter!</p>
+                <MessageSquare size={30} className="text-stone-300 mb-2" />
+                <p className="text-xs text-stone-500">Send a greeting message to start the room chatter!</p>
               </div>
             ) : (
               messages.map((msg) => {
@@ -407,7 +407,7 @@ export default function LobbyView({ code }: LobbyViewProps) {
                 if (isSystem) {
                   return (
                     <div key={msg.id} className="text-center">
-                      <span className="bg-stone-950 text-stone-500 text-[10px] px-2 py-0.5 rounded border border-stone-900">
+                      <span className="bg-stone-100 text-stone-500 text-[10px] px-2 py-0.5 rounded border border-stone-200">
                         {msg.message}
                       </span>
                     </div>
@@ -416,10 +416,10 @@ export default function LobbyView({ code }: LobbyViewProps) {
 
                 return (
                   <div key={msg.id} className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
-                    <span className="text-[10px] text-stone-500 mb-0.5">
+                    <span className="text-[10px] text-stone-400 mb-0.5">
                       {isSelf ? 'You' : msg.username}
                     </span>
-                    <div className={`px-3 py-2 rounded-xl text-xs max-w-[85%] ${isSelf ? 'bg-red-600 text-white rounded-tr-none' : 'bg-stone-950 text-stone-200 rounded-tl-none border border-stone-800'}`}>
+                    <div className={`px-3 py-2 rounded-xl text-xs max-w-[85%] ${isSelf ? 'bg-stone-905 text-white rounded-tr-none' : 'bg-white text-stone-800 rounded-tl-none border border-stone-200 shadow-xs'}`}>
                       {msg.message}
                     </div>
                   </div>
@@ -430,19 +430,19 @@ export default function LobbyView({ code }: LobbyViewProps) {
           </div>
 
           {/* Form Area */}
-          <form onSubmit={handleSendChat} className="p-3 border-t border-stone-800 flex gap-2">
+          <form onSubmit={handleSendChat} className="p-3 border-t border-stone-150 flex gap-2">
             <input
               type="text"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               placeholder="Type your message..."
               maxLength={150}
-              className="flex-1 bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-red-500 text-white"
+              className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-stone-400 text-stone-900"
             />
             <button
               type="submit"
               disabled={!chatInput.trim()}
-              className="px-3 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-xs font-bold rounded-xl transition-all"
+              className="px-4 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-40 text-xs font-bold text-white rounded-xl transition-all"
             >
               Send
             </button>

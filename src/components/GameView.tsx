@@ -381,11 +381,11 @@ export default function GameView({ code }: GameViewProps) {
       const camY = my.y - 480;
 
       // 1. Draw track walls & road canvas
-      ctx.fillStyle = '#0a0a0a';
+      ctx.fillStyle = '#fcfbf9';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Grid helper details
-      ctx.strokeStyle = 'rgba(239, 68, 68, 0.03)';
+      ctx.strokeStyle = 'rgba(120, 113, 108, 0.06)';
       ctx.lineWidth = 1;
       for (let x = 100; x < 700; x += 40) {
         ctx.beginPath();
@@ -403,21 +403,15 @@ export default function GameView({ code }: GameViewProps) {
       }
 
       // Neon Lane Sidewalls
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 3;
       const gameMode = room?.current_game || 'Obstacle Dash';
       
       if (gameMode === 'Space Dodge') {
-        ctx.strokeStyle = '#a855f7'; // Purple neon sidewalls
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#c084fc';
+        ctx.strokeStyle = '#7c3aed'; // Purple
       } else if (gameMode === 'Neon Coin Rush') {
-        ctx.strokeStyle = '#10b981'; // Green neon sidewalls
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#34d399';
+        ctx.strokeStyle = '#059669'; // Emerald
       } else {
-        ctx.strokeStyle = '#ef4444'; // Red-orange neon track outline
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#f97316';
+        ctx.strokeStyle = '#292524'; // Stone-800
       }
       
       ctx.beginPath();
@@ -426,15 +420,14 @@ export default function GameView({ code }: GameViewProps) {
       ctx.moveTo(700, 0);
       ctx.lineTo(700, canvas.height);
       ctx.stroke();
-      ctx.shadowBlur = 0; // Clear shadow for subsequent ops
 
-      // Yellow/Purple/Green warning dashes
+      // Warning dashes
       if (gameMode === 'Space Dodge') {
-        ctx.fillStyle = 'rgba(168, 85, 247, 0.4)';
+        ctx.fillStyle = 'rgba(124, 58, 237, 0.1)';
       } else if (gameMode === 'Neon Coin Rush') {
-        ctx.fillStyle = 'rgba(16, 185, 129, 0.4)';
+        ctx.fillStyle = 'rgba(5, 150, 105, 0.1)';
       } else {
-        ctx.fillStyle = 'rgba(234, 179, 8, 0.4)';
+        ctx.fillStyle = 'rgba(120, 113, 108, 0.08)';
       }
 
       for (let y = 0; y < 3000; y += 120) {
@@ -448,11 +441,11 @@ export default function GameView({ code }: GameViewProps) {
       // 2. Draw Start/Finish lines (omitted in Space Dodge Survival)
       if (gameMode !== 'Space Dodge') {
         const finishY = 180 - camY;
-        ctx.fillStyle = '#10b981';
+        ctx.fillStyle = '#059669';
         ctx.fillRect(100, finishY - 5, 600, 10);
         
         // Checkerboard finish pattern
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = '#1c1917';
         for (let cx = 100; cx < 700; cx += 30) {
           if (Math.floor(cx / 30) % 2 === 0) {
             ctx.fillRect(cx, finishY - 5, 15, 10);
@@ -466,11 +459,9 @@ export default function GameView({ code }: GameViewProps) {
 
         const by = b.y - camY;
         if (by > -30 && by < canvas.height + 30) {
-          ctx.shadowBlur = 18;
-          ctx.shadowColor = '#10b981';
           ctx.beginPath();
           ctx.arc(b.x, by, 12, 0, Math.PI * 2);
-          ctx.fillStyle = '#10b981';
+          ctx.fillStyle = '#059669';
           ctx.fill();
 
           ctx.strokeStyle = '#fff';
@@ -487,7 +478,6 @@ export default function GameView({ code }: GameViewProps) {
           ctx.fill();
         }
       }
-      ctx.shadowBlur = 0;
 
       // 4. Draw Deterministic Moving Obstacles
       const nowTime = Date.now();
@@ -498,22 +488,19 @@ export default function GameView({ code }: GameViewProps) {
           const dx = Math.sin(nowTime * obs.speed + obs.id) * obs.amp;
           const currentObsX = obs.xBase + dx;
 
-          ctx.fillStyle = obs.style === 'neon-red' ? '#dc2626' : (obs.style === 'cyber-barrier' ? '#3b82f6' : '#78716c');
-          ctx.shadowBlur = obs.style === 'debris' ? 2 : 12;
-          ctx.shadowColor = ctx.fillStyle;
+          ctx.fillStyle = obs.style === 'neon-red' ? '#78716c' : (obs.style === 'cyber-barrier' ? '#44403c' : '#a8a29e');
 
           // Draw round neon capsules
           ctx.beginPath();
-          ctx.roundRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h, 8);
+          ctx.roundRect(currentObsX - obs.w / 2, oy - obs.h / 2, obs.w, obs.h, 6);
           ctx.fill();
 
           // Stroke details
           ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 1.5;
+          ctx.lineWidth = 1;
           ctx.stroke();
         }
       }
-      ctx.shadowBlur = 0;
 
       // 5. Draw REST OF PLAYERS (Interpolated target positions)
       players.forEach((plyr) => {
@@ -574,62 +561,57 @@ export default function GameView({ code }: GameViewProps) {
 
       // Jet engines visual particles trailing behind
       if (Math.abs(myPlayerRef.current.vy) > 2) {
-        ctx.fillStyle = boostFrames > 0 ? '#10b981' : '#f97316';
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = ctx.fillStyle;
-        const trailLength = boostFrames > 0 ? 35 : 18;
+        ctx.fillStyle = boostFrames > 0 ? '#10b981' : '#78716c';
+        const trailLength = boostFrames > 0 ? 15 : 8;
         ctx.fillRect(cx - 8, cy + 25, 4, trailLength);
         ctx.fillRect(cx + 4, cy + 25, 4, trailLength);
       }
-      ctx.shadowBlur = 0;
 
       // Base body color
-      ctx.fillStyle = isSelf ? '#f43f5e' : '#38bdf8'; // Hot Pink self, Sky Blue team
+      ctx.fillStyle = isSelf ? '#1c1917' : '#78716c'; // Dark slate charcoal self, warm gray team
       if (crashed) {
-        ctx.fillStyle = '#78716c'; // Grey debris
+        ctx.fillStyle = '#a8a29e'; // Grey debris
       }
       if (finished) {
-        ctx.fillStyle = '#10b981'; // Green victory
+        ctx.fillStyle = '#059669'; // Green victory
       }
 
       // Main Capsule shape
       ctx.beginPath();
-      ctx.roundRect(cx - 15, cy - 25, 30, 50, 6);
+      ctx.roundRect(cx - 15, cy - 25, 30, 50, 4);
       ctx.fill();
 
       // Tires
-      ctx.fillStyle = '#000';
-      ctx.fillRect(cx - 18, cy - 18, 4, 10);
-      ctx.fillRect(cx + 14, cy - 18, 4, 10);
-      ctx.fillRect(cx - 18, cy + 8, 4, 10);
-      ctx.fillRect(cx + 14, cy + 8, 4, 10);
+      ctx.fillStyle = '#292524';
+      ctx.fillRect(cx - 17, cy - 18, 3, 8);
+      ctx.fillRect(cx + 14, cy - 18, 3, 8);
+      ctx.fillRect(cx - 17, cy + 8, 3, 8);
+      ctx.fillRect(cx + 14, cy + 8, 3, 8);
 
       // Windshield glass
-      ctx.fillStyle = finished ? '#a7f3d0' : '#e0f2fe';
+      ctx.fillStyle = '#f5f5f4';
       ctx.beginPath();
-      ctx.roundRect(cx - 9, cy - 12, 18, 14, 2);
+      ctx.roundRect(cx - 9, cy - 12, 18, 14, 1);
       ctx.fill();
 
-      // Cyber decors
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(cx - 11, cy + 18, 22, 2);
-
-      // Custom tag outline
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.font = 'bold 11px system-ui';
+      // High-contrast custom label tag
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.font = 'bold 11px system-ui, sans-serif';
       const measure = ctx.measureText(uName);
       ctx.fillRect(cx - measure.width / 2 - 4, cy - 40, measure.width + 8, 16);
 
-      ctx.fillStyle = isSelf ? '#fda4af' : '#bae6fd';
+      ctx.strokeStyle = 'rgba(120, 113, 108, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cx - measure.width / 2 - 4, cy - 40, measure.width + 8, 16);
+
+      ctx.fillStyle = '#1c1917';
       ctx.textAlign = 'center';
       ctx.fillText(uName, cx, cy - 28);
 
       // Glowing powerup halo
       if (boostFrames > 0) {
-        ctx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
-        ctx.lineWidth = 3;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#10b981';
+        ctx.strokeStyle = 'rgba(5, 150, 105, 0.6)';
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(cx, cy, 32, 0, Math.PI * 2);
         ctx.stroke();
@@ -706,23 +688,23 @@ export default function GameView({ code }: GameViewProps) {
     });
 
   return (
-    <div ref={containerRef} className="w-full max-w-7xl mx-auto p-4 md:py-8 text-white min-h-[85vh]">
+    <div ref={containerRef} className="w-full max-w-7xl mx-auto p-4 md:py-8 text-stone-800 min-h-[85vh]">
       
       {/* Game navigation banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <button
             onClick={handleReturnToLobby}
-            className="flex items-center gap-1 text-xs text-stone-400 hover:text-red-400 transition-colors mb-2"
+            className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-750 transition-colors mb-2"
           >
             <ArrowLeft size={12} /> Disconnect from session
           </button>
           
-          <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight flex items-center gap-2">
-            <Orbit className={`${gameMode === 'Space Dodge' ? 'text-purple-500' : (gameMode === 'Neon Coin Rush' ? 'text-emerald-500' : 'text-red-500')} animate-spin`} style={{ animationDuration: '6s' }} size={20} />
+          <h1 className="text-xl md:text-2xl font-bold uppercase tracking-tight flex items-center gap-2 text-stone-950">
+            <Orbit className={`${gameMode === 'Space Dodge' ? 'text-stone-600' : (gameMode === 'Neon Coin Rush' ? 'text-stone-600' : 'text-stone-900')} animate-spin`} style={{ animationDuration: '6s' }} size={20} />
             {gameMode}
           </h1>
-          <p className="text-xs text-stone-500">
+          <p className="text-xs text-stone-500 font-light max-w-xl">
             {gameMode === 'Space Dodge'
               ? 'Survive the endless space debris! Avoid asteroids and collisions to preserve your shields.'
               : gameMode === 'Neon Coin Rush'
@@ -732,9 +714,9 @@ export default function GameView({ code }: GameViewProps) {
         </div>
 
         {/* Action guidelines */}
-        <div className="flex items-center gap-3 text-xs bg-stone-900 border border-stone-800 p-2.5 rounded-xl">
-          <Zap className="text-yellow-400 fill-yellow-400 animate-bounce" size={14} />
-          <span className="text-stone-300 font-medium font-mono text-[10px] uppercase">Use W, S, A, D or Arrows to control!</span>
+        <div className="flex items-center gap-3 text-xs bg-white border border-stone-200 p-2.5 rounded-xl shadow-xs">
+          <Zap className="text-stone-500 fill-stone-500 animate-bounce" size={14} />
+          <span className="text-stone-600 font-bold font-mono text-[10px] uppercase">Use W, S, A, D or Arrows to control!</span>
         </div>
       </div>
 
@@ -744,69 +726,63 @@ export default function GameView({ code }: GameViewProps) {
         <div className="lg:col-span-1 flex flex-col gap-5">
           
           {/* Real-time Speeder */}
-          <div className="bg-stone-900/60 border border-stone-800 p-5 rounded-2xl">
+          <div className="bg-white border border-stone-200 p-5 rounded-2xl shadow-xs">
             {gameMode === 'Space Dodge' ? (
               <>
-                <h3 className="font-bold uppercase tracking-wider text-xs text-stone-400 mb-3 flex items-center gap-1.5 border-b border-stone-800 pb-2">
+                <h3 className="font-bold uppercase tracking-wider text-xs text-stone-500 mb-3 flex items-center gap-1.5 border-b border-stone-150 pb-2">
                   <Compass size={14} /> Shield Integrity
                 </h3>
                 <div className="text-center py-2">
-                  <span className="text-3xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-purple-400 to-indigo-500">
+                  <span className="text-3xl font-black font-mono text-stone-900">
                     {myPlayerRef.current.score}
                   </span>
-                  <span className="text-xs text-stone-500 font-semibold uppercase tracking-wider ml-1">HP</span>
+                  <span className="text-xs text-stone-400 font-bold uppercase tracking-wider ml-1">HP</span>
                 </div>
               </>
             ) : gameMode === 'Neon Coin Rush' ? (
               <>
-                <h3 className="font-bold uppercase tracking-wider text-xs text-stone-400 mb-3 flex items-center gap-1.5 border-b border-stone-800 pb-2">
+                <h3 className="font-bold uppercase tracking-wider text-xs text-stone-500 mb-3 flex items-center gap-1.5 border-b border-stone-150 pb-2">
                   <Compass size={14} /> Energy Nodes
                 </h3>
                 <div className="text-center py-2">
-                  <span className="text-3xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-emerald-400 to-teal-500">
+                  <span className="text-3xl font-black font-mono text-stone-900">
                     {myPlayerRef.current.score}
                   </span>
-                  <span className="text-xs text-stone-500 font-semibold uppercase tracking-wider ml-1">PTS</span>
+                  <span className="text-xs text-stone-400 font-bold uppercase tracking-wider ml-1">PTS</span>
                 </div>
               </>
             ) : (
               <>
-                <h3 className="font-bold uppercase tracking-wider text-xs text-stone-400 mb-3 flex items-center gap-1.5 border-b border-stone-800 pb-2">
+                <h3 className="font-bold uppercase tracking-wider text-xs text-stone-500 mb-3 flex items-center gap-1.5 border-b border-stone-150 pb-2">
                   <Compass size={14} /> telemetry
                 </h3>
                 <div className="text-center py-2">
-                  <span className="text-3xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-red-400 to-orange-500">
+                  <span className="text-3xl font-black font-mono text-stone-800">
                     {speedVal}
                   </span>
-                  <span className="text-xs text-stone-500 font-semibold uppercase tracking-wider ml-1">KPH</span>
+                  <span className="text-xs text-stone-400 font-bold uppercase tracking-wider ml-1">KPH</span>
                 </div>
               </>
             )}
             
             {/* Completion metrics bar */}
             <div className="mt-3">
-              <div className="flex items-center justify-between text-xs text-stone-400 mb-1.5 font-light">
+              <div className="flex items-center justify-between text-xs text-stone-500 mb-1.5 font-light">
                 {gameMode === 'Space Dodge' ? (
                   <>
                     <span>Time Remaining:</span>
-                    <span className="font-bold font-mono">{secondsLeft}s</span>
+                    <span className="font-bold font-mono text-stone-700">{secondsLeft}s</span>
                   </>
                 ) : (
                   <>
                     <span>Progress:</span>
-                    <span className="font-bold">{progressPercent}%</span>
+                    <span className="font-bold text-stone-700">{progressPercent}%</span>
                   </>
                 )}
               </div>
-              <div className="w-full h-2 bg-stone-950 rounded-full overflow-hidden border border-stone-800">
+              <div className="w-full h-2 bg-stone-100 rounded-full overflow-hidden border border-stone-200">
                 <div
-                  className={`h-full rounded-full transition-all bg-gradient-to-r ${
-                    gameMode === 'Space Dodge'
-                      ? 'from-purple-500 to-indigo-500'
-                      : gameMode === 'Neon Coin Rush'
-                      ? 'from-emerald-500 to-teal-500'
-                      : 'from-red-500 to-orange-500'
-                  }`}
+                  className="h-full rounded-full transition-all bg-stone-900"
                   style={{
                     width: `${gameMode === 'Space Dodge' ? (secondsLeft / 30) * 100 : progressPercent}%`
                   }}
@@ -816,8 +792,8 @@ export default function GameView({ code }: GameViewProps) {
           </div>
 
           {/* Leaders Dashboard */}
-          <div className="bg-stone-900/60 border border-stone-800 p-5 rounded-2xl flex-1 flex flex-col">
-            <h3 className="font-bold uppercase tracking-wider text-xs text-stone-400 mb-4 flex items-center gap-1.5 border-b border-stone-800 pb-2">
+          <div className="bg-white border border-stone-200 p-5 rounded-2xl flex-1 flex flex-col shadow-xs">
+            <h3 className="font-bold uppercase tracking-wider text-xs text-stone-500 mb-4 flex items-center gap-1.5 border-b border-stone-150 pb-2">
               <Trophy size={14} /> Real-time Leaders
             </h3>
 
@@ -825,23 +801,23 @@ export default function GameView({ code }: GameViewProps) {
               {sortedLeadboard.map((entry, index) => (
                 <div
                   key={entry.name}
-                  className={`flex items-center justify-between p-3 rounded-xl border ${entry.isSelf ? 'bg-gradient-to-r from-stone-950 to-stone-900/60 border-stone-700/80 shadow-md shadow-red-950/5' : 'bg-stone-950/40 border-stone-800/80'}`}
+                  className={`flex items-center justify-between p-3 rounded-xl border ${entry.isSelf ? 'bg-stone-50 border-stone-300 shadow-xs' : 'bg-white border-stone-150'}`}
                 >
                   <div className="flex items-center gap-2 w-[70%]">
-                    <span className="font-black text-xs text-stone-500 font-mono w-4">
+                    <span className="font-bold text-xs text-stone-400 font-mono w-4">
                       #{index + 1}
                     </span>
                     <div className="truncate">
-                      <p className={`text-xs font-bold truncate ${entry.isSelf ? 'text-red-400' : 'text-stone-300'}`}>
+                      <p className={`text-xs font-bold truncate ${entry.isSelf ? 'text-stone-900' : 'text-stone-700'}`}>
                         {entry.name}
                       </p>
-                      <p className="text-[10px] text-stone-500 font-light">
+                      <p className="text-[10px] text-stone-400 font-light">
                         {entry.finished ? 'Complete' : 'Racing'}
                       </p>
                     </div>
                   </div>
 
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${entry.finished ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-stone-950 text-stone-400'}`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${entry.finished ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-stone-50 text-stone-500'}`}>
                     {entry.finished
                       ? 'Finished'
                       : gameMode === 'Space Dodge'
@@ -857,10 +833,10 @@ export default function GameView({ code }: GameViewProps) {
         </div>
 
         {/* 2D CANVAS GAMEFIELD */}
-        <div className="lg:col-span-3 flex flex-col bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden p-3 relative shadow-2xl">
+        <div className="lg:col-span-3 flex flex-col bg-white border border-stone-200 rounded-2xl overflow-hidden p-3 relative shadow-xs">
           <canvas
             ref={canvasRef}
-            className="w-full bg-stone-950 rounded-xl max-h-[70vh] border border-stone-950/80 aspect-[8/7]"
+            className="w-full bg-stone-50 rounded-xl max-h-[70vh] border border-stone-200/80 aspect-[8/7]"
           />
         </div>
 

@@ -53,7 +53,7 @@ export default function ResultsView({ code }: ResultsViewProps) {
   const bronzeWinner = sortedStandings[2];
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-12 text-white min-h-[85vh] flex flex-col items-center justify-center">
+    <div className="w-full max-w-4xl mx-auto px-4 py-12 text-stone-800 min-h-[85vh] flex flex-col items-center justify-center">
       
       {/* Title Header */}
       <motion.div
@@ -61,14 +61,14 @@ export default function ResultsView({ code }: ResultsViewProps) {
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-10"
       >
-        <span className="bg-yellow-500/10 text-yellow-400 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-widest border border-yellow-500/20 shadow-sm inline-flex items-center gap-1.5 mb-3">
-          <Trophy size={12} /> GP Grand Prix Complete
+        <span className="bg-stone-100 text-stone-600 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider border border-stone-200 shadow-xs inline-flex items-center gap-1.5 mb-3">
+          <Trophy size={12} className="text-amber-500" /> GP Grand Prix Complete
         </span>
-        <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500">
+        <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight text-stone-900">
           Race Results
         </h1>
         <p className="text-xs text-stone-500 mt-2 font-light">
-          The race is complete. Congratulations to the victors of the Neon track track!
+          The race is complete. Congratulations to the victors of the Grand Prix track!
         </p>
       </motion.div>
 
@@ -83,19 +83,19 @@ export default function ResultsView({ code }: ResultsViewProps) {
               animate={{ opacity: 1, scale: 1 }}
               className="text-center mb-2"
             >
-              <div className="w-10 h-10 rounded-full bg-slate-500-gradient border border-stone-600 flex items-center justify-center font-bold text-xs text-stone-300 mx-auto">
+              <div className="w-10 h-10 rounded-full bg-stone-200 border border-stone-300 flex items-center justify-center font-bold text-xs text-stone-700 mx-auto shadow-xs">
                 2nd
               </div>
-              <p className="text-xs font-bold text-stone-300 mt-1 truncate max-w-[80px]">{silverWinner.username}</p>
+              <p className="text-xs font-bold text-stone-700 mt-1 truncate max-w-[80px]">{silverWinner.username}</p>
             </motion.div>
           ) : (
-            <div className="h-10 w-10 bg-stone-900 rounded-full border border-stone-800 mb-2 flex items-center justify-center text-xs text-stone-700">-</div>
+            <div className="h-10 w-10 bg-stone-50 rounded-full border border-stone-200 mb-2 flex items-center justify-center text-xs text-stone-400">-</div>
           )}
           <motion.div
             initial={{ height: 0 }}
             animate={{ height: 80 }}
             transition={{ delay: 0.2 }}
-            className="w-full bg-stone-900 border border-stone-800 rounded-t-xl flex items-center justify-center font-black text-2xl text-stone-500 font-mono shadow-inner shadow-black/80"
+            className="w-full bg-stone-100 border border-stone-250 rounded-t-xl flex items-center justify-center font-black text-2xl text-stone-400 font-mono shadow-xs"
           >
             II
           </motion.div>
@@ -110,22 +110,22 @@ export default function ResultsView({ code }: ResultsViewProps) {
               transition={{ delay: 0.3 }}
               className="text-center mb-2"
             >
-              <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-yellow-300 to-yellow-600 border-2 border-yellow-400 flex items-center justify-center font-black text-lg text-white shadow-lg shadow-yellow-500/20 mx-auto animate-bounce" style={{ animationDuration: '3s' }}>
+              <div className="w-14 h-14 rounded-full bg-amber-100 border-2 border-amber-400 flex items-center justify-center font-black text-lg text-amber-700 shadow-md mx-auto animate-bounce" style={{ animationDuration: '3s' }}>
                 👑
               </div>
-              <p className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500 mt-1 truncate max-w-[100px]">
+              <p className="text-sm font-extrabold text-amber-700 mt-1 truncate max-w-[100px]">
                 {goldWinner.username}
               </p>
             </motion.div>
           ) : (
-            <div className="h-14 w-14 bg-stone-900 rounded-full border border-stone-800 mb-2 flex items-center justify-center text-xs text-stone-700">-</div>
+            <div className="h-14 w-14 bg-stone-50 rounded-full border border-stone-200 mb-2 flex items-center justify-center text-xs text-stone-400">-</div>
           )}
           <motion.div
             initial={{ height: 0 }}
             animate={{ height: 120 }}
-            className="w-full bg-gradient-to-b from-yellow-600/20 to-stone-900/40 border border-yellow-500/30 rounded-t-xl flex items-center justify-center font-black text-4xl text-yellow-500 font-mono shadow-md shadow-yellow-500/5 relative overflow-hidden"
+            className="w-full bg-stone-200/60 border border-stone-300 rounded-t-xl flex items-center justify-center font-black text-4xl text-stone-550 font-mono shadow-xs relative overflow-hidden"
           >
-            <div className="absolute top-0 inset-x-0 h-1 bg-yellow-500/50" />
+            <div className="absolute top-0 inset-x-0 h-1 bg-amber-400/50" />
             I
           </motion.div>
         </div>
@@ -138,19 +138,19 @@ export default function ResultsView({ code }: ResultsViewProps) {
               animate={{ opacity: 1, scale: 1 }}
               className="text-center mb-2"
             >
-              <div className="w-10 h-10 rounded-full bg-amber-800/80 border border-amber-900 flex items-center justify-center font-bold text-xs text-amber-500 mx-auto">
+              <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-305 flex items-center justify-center font-bold text-xs text-amber-700 mx-auto shadow-xs">
                 3rd
               </div>
-              <p className="text-xs font-bold text-amber-600 mt-1 truncate max-w-[80px]">{bronzeWinner.username}</p>
+              <p className="text-xs font-bold text-amber-700 mt-1 truncate max-w-[80px]">{bronzeWinner.username}</p>
             </motion.div>
           ) : (
-            <div className="h-10 w-10 bg-stone-900 rounded-full border border-stone-800 mb-2 flex items-center justify-center text-xs text-stone-700">-</div>
+            <div className="h-10 w-10 bg-stone-50 rounded-full border border-stone-200 mb-2 flex items-center justify-center text-xs text-stone-400">-</div>
           )}
           <motion.div
             initial={{ height: 0 }}
             animate={{ height: 60 }}
             transition={{ delay: 0.4 }}
-            className="w-full bg-stone-900 border border-stone-800 rounded-t-xl flex items-center justify-center font-black text-xl text-stone-600 font-mono shadow-inner"
+            className="w-full bg-stone-100/60 border border-stone-200 rounded-t-xl flex items-center justify-center font-black text-xl text-stone-400 font-mono shadow-xs"
           >
             III
           </motion.div>
@@ -159,8 +159,8 @@ export default function ResultsView({ code }: ResultsViewProps) {
       </div>
 
       {/* Structured Standings Listing */}
-      <div className="w-full max-w-xl bg-stone-900/60 border border-stone-800 p-6 rounded-2xl mb-8">
-        <h3 className="font-bold text-xs uppercase tracking-wider text-stone-400 mb-4 border-b border-stone-800 pb-2">
+      <div className="w-full max-w-xl bg-white border border-stone-200 p-6 rounded-2xl mb-8 shadow-xs">
+        <h3 className="font-bold text-xs uppercase tracking-wider text-stone-600 mb-4 border-b border-stone-150 pb-2">
           Final standings listing
         </h3>
 
@@ -168,18 +168,18 @@ export default function ResultsView({ code }: ResultsViewProps) {
           {sortedStandings.map((plyr, idx) => (
             <div
               key={plyr.id}
-              className="flex items-center justify-between p-3 bg-stone-950/40 rounded-xl border border-stone-800/80"
+              className="flex items-center justify-between p-3 bg-stone-50/60 rounded-xl border border-stone-150"
             >
               <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-stone-500 font-mono w-4">
+                <span className="text-xs font-bold text-stone-400 font-mono w-4">
                   #{idx + 1}
                 </span>
-                <span className="text-sm font-bold text-stone-200">
+                <span className="text-sm font-bold text-stone-800">
                   {plyr.username}
                 </span>
               </div>
 
-              <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${plyr.finished ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+              <span className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border ${plyr.finished ? 'bg-green-50 text-green-700 border-green-250' : 'bg-red-50 text-red-700 border-red-250'}`}>
                 {plyr.finished ? 'Complete' : 'DNF'}
               </span>
             </div>
@@ -191,7 +191,7 @@ export default function ResultsView({ code }: ResultsViewProps) {
       <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-xl justify-center">
         <button
           onClick={handleLeave}
-          className="w-full sm:w-auto px-6 py-3 bg-stone-950 hover:bg-stone-900 text-stone-300 font-semibold rounded-xl border border-stone-800 hover:border-stone-700 transition-colors inline-flex items-center justify-center gap-2 text-sm"
+          className="w-full sm:w-auto px-6 py-3 bg-white hover:bg-stone-50 text-stone-700 font-semibold rounded-xl border border-stone-250 hover:border-stone-350 transition-colors inline-flex items-center justify-center gap-2 text-sm shadow-xs"
         >
           <Home size={14} /> Back to dashboard
         </button>
@@ -199,12 +199,12 @@ export default function ResultsView({ code }: ResultsViewProps) {
         {isHost ? (
           <button
             onClick={handleRestartLobby}
-            className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-stone-100 font-bold rounded-xl shadow-lg shadow-red-950/20 hover:shadow-orange-950/20 transition-all inline-flex items-center justify-center gap-2 text-sm uppercase tracking-wide"
+            className="w-full sm:w-auto px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl shadow-xs transition-all inline-flex items-center justify-center gap-2 text-sm uppercase tracking-wider"
           >
             <RotateCcw size={14} /> Reset Room Lobby
           </button>
         ) : (
-          <div className="text-xs text-stone-500 font-medium flex items-center gap-1.5 bg-stone-950/50 p-3 rounded-xl border border-stone-800/40">
+          <div className="text-xs text-stone-500 font-medium flex items-center gap-1.5 bg-stone-50 p-3 rounded-xl border border-stone-200">
             <ShieldCheck size={14} className="text-stone-400" /> Wait for the Host to restart...
           </div>
         )}

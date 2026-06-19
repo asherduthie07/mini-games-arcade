@@ -66,16 +66,15 @@ export default function App() {
     // If we have a code but the active player hasn't declared a username:
     if (code && !username) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-[75vh] p-4 text-white">
+        <div className="flex flex-col items-center justify-center min-h-[75vh] p-4 text-stone-800">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-md bg-stone-900 border border-stone-800 rounded-2xl p-8 relative overflow-hidden"
+            className="w-full max-w-md bg-white border border-stone-200 rounded-2xl p-8 shadow-sm relative overflow-hidden"
           >
-            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-500 to-orange-500" />
-            <h2 className="text-xl font-black uppercase text-stone-200 mb-2">Join Multiplayer Race</h2>
+            <h2 className="text-xl font-bold uppercase text-stone-900 mb-2">Join Multiplayer Race</h2>
             <p className="text-xs text-stone-500 font-light mb-6">
-              Enter a guest name below to register your session for room <span className="text-red-400 font-mono font-bold">{code}</span>.
+              Enter a guest name below to register your session for room <span className="text-red-500 font-mono font-bold">{code}</span>.
             </p>
 
             <form onSubmit={handleGuestSubmit} className="flex flex-col gap-4">
@@ -90,14 +89,14 @@ export default function App() {
                   value={guestNameInput}
                   onChange={(e) => setGuestNameInput(e.target.value)}
                   placeholder="TurboRacer"
-                  className="w-full bg-stone-950 border border-stone-800 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-red-500 transition-colors"
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 text-sm text-stone-900 focus:outline-none focus:border-stone-400 transition-colors"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isConnecting || !guestNameInput.trim()}
-                className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-sm font-bold text-white rounded-xl uppercase tracking-wider transition-all"
+                className="w-full py-3 bg-stone-900 hover:bg-stone-800 disabled:opacity-40 text-sm font-bold text-white rounded-xl uppercase tracking-wider transition-all"
               >
                 {isConnecting ? 'Registering session...' : 'Connect and Enter'}
               </button>
@@ -124,13 +123,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-black select-none overflow-x-hidden font-sans">
+    <div className="min-h-screen bg-stone-50 text-stone-800 select-none overflow-x-hidden font-sans">
       
-      {/* Decorative ambient overhead glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[120px] bg-red-500/5 blur-[120px] rounded-full pointer-events-none" />
-
       {/* Global Header Bar */}
-      <header className="border-b border-stone-900 bg-black/60 backdrop-blur-md sticky top-0 z-40 px-4 py-4">
+      <header className="border-b border-stone-200/80 bg-white/75 backdrop-blur-md sticky top-0 z-40 px-4 py-3.5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div
             onClick={() => {
@@ -139,19 +135,19 @@ export default function App() {
             }}
             className="flex items-center gap-2 cursor-pointer group"
           >
-            <div className="bg-red-500/10 text-red-500 p-2 rounded-xl group-hover:bg-red-500 group-hover:text-black transition-colors duration-200">
-              <Gamepad2 size={16} className="orbit-spin-icon" />
+            <div className="bg-stone-100 text-stone-800 p-2 rounded-xl group-hover:bg-stone-900 group-hover:text-white transition-colors duration-200">
+              <Gamepad2 size={16} />
             </div>
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-stone-200">neonGP</p>
-              <p className="text-[9px] text-stone-600 font-medium">Multiplayer Arcade</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-stone-900">Arcade GP</p>
+              <p className="text-[9px] text-stone-500 font-medium">Multiplayer Canvas Games</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4 text-xs">
             {username && (
-              <span className="text-stone-500 font-light flex items-center gap-1.5 bg-stone-950/40 p-2 rounded-lg border border-stone-900">
-                Logged in as <span className="text-stone-300 font-bold">@{username}</span>
+              <span className="text-stone-500 font-light flex items-center gap-1.5 bg-white p-1.5 px-2.5 rounded-lg border border-stone-200 shadow-xs">
+                Logged in as <span className="text-stone-800 font-bold">@{username}</span>
               </span>
             )}
           </div>
@@ -174,8 +170,8 @@ export default function App() {
       </main>
 
       {/* Footer Branding */}
-      <footer className="border-t border-stone-900 py-6 text-center text-[10px] text-stone-600 font-light mt-12 bg-stone-950/20">
-        <p>© 2026 NEON GRAND PRIX INC. OPTIMIZED FOR HIGH-PERFORMANCE LOW-LATENCY SYNC CLIENTS.</p>
+      <footer className="border-t border-stone-200 py-6 text-center text-[10px] text-stone-400 font-light mt-12 bg-white">
+        <p>© 2026 ARCADE GRAND PRIX INC. POWERED BY LOW-LATENCY CHANNELS.</p>
       </footer>
     </div>
   );
